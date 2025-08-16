@@ -1,0 +1,12 @@
+2025-08-16|09:00|Morning standup meeting
+2025-08-16|14:30|Project review session
+2025-08-17|10:00|Client presentation
+2025-08-18|15:00|Team lunch
+2025-08-20|11:00|Code review
+2025-08-25|13:00|Monthly planning meeting2025-08-16|10:30|Integration test meeting
+2025-08-16|14:00|Another test event
+2025-08-16|10:30|Integration test meeting
+2025-08-16|14:00|Another test event
+2025-08-03|15:30|Hello
+2025-08-03|14:10|Test
+2025-08-20|13:12|Test
