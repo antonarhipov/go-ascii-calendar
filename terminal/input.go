@@ -239,6 +239,55 @@ func (ih *InputHandler) GetTextInputWithPrompt(prompt string, maxLength int, ren
 	}
 }
 
+// GetInlineTextInput handles text input with inline rendering at specific coordinates
+func (ih *InputHandler) GetInlineTextInput(x, y int, prompt string, maxLength int, renderer *Renderer) (string, bool) {
+	var input strings.Builder
+
+	for {
+		// Update display with current input using inline rendering
+		renderer.RenderInlineInput(x, y, prompt, input.String())
+
+		event := ih.terminal.PollEvent()
+
+		if event.Type != termbox.EventKey {
+			continue
+		}
+
+		switch event.Key {
+		case termbox.KeyEsc:
+			return "", false // User cancelled
+
+		case termbox.KeyEnter:
+			result := strings.TrimSpace(input.String())
+			return result, true // User confirmed
+
+		case termbox.KeyBackspace, termbox.KeyBackspace2:
+			if input.Len() > 0 {
+				// Remove last character
+				str := input.String()
+				input.Reset()
+				if len(str) > 0 {
+					input.WriteString(str[:len(str)-1])
+				}
+			}
+
+		case termbox.KeySpace:
+			if input.Len() < maxLength {
+				input.WriteRune(' ')
+			}
+
+		default:
+			// Handle printable characters
+			if event.Ch != 0 && input.Len() < maxLength {
+				// Allow printable ASCII characters
+				if event.Ch >= 32 && event.Ch <= 126 {
+					input.WriteRune(event.Ch)
+				}
+			}
+		}
+	}
+}
+
 // IsValidKey checks if a character is a valid key for the application
 func (ih *InputHandler) IsValidKey(ch rune) bool {
 	validKeys := "bBnNhHjJkKlLaAqQ"

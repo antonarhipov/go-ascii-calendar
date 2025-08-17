@@ -108,6 +108,46 @@ func (r *Renderer) RenderCalendarWithEventSelection(cal *models.Calendar, select
 	return r.terminal.Flush()
 }
 
+// RenderCalendarWithEventAdd renders the calendar with event add highlighting
+func (r *Renderer) RenderCalendarWithEventAdd(cal *models.Calendar, selection *models.Selection) error {
+	r.terminal.Clear()
+
+	// Get terminal size
+	width, height := r.terminal.GetSize()
+	if width < 80 || height < 24 {
+		r.terminal.PrintCentered(height/2, "Terminal too small! Minimum 80x24 required.",
+			termbox.ColorRed, termbox.ColorDefault)
+		return r.terminal.Flush()
+	}
+
+	// Calculate starting positions for three months
+	totalWidth := 3*r.monthWidth + 2*r.monthSpacing
+	startX := (width - totalWidth) / 2
+
+	prevMonth := cal.GetPreviousMonth()
+	currentMonth := cal.CurrentMonth
+	nextMonth := cal.GetNextMonth()
+
+	months := []time.Time{prevMonth, currentMonth, nextMonth}
+
+	// Render each month
+	for i, month := range months {
+		x := startX + i*(r.monthWidth+r.monthSpacing)
+		err := r.renderMonth(month, x, 2, selection)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Render events for selected date with add mode highlighting
+	r.renderSelectedDateEventsWithAddMode(selection.SelectedDate)
+
+	// Render key legend for event add mode
+	r.renderEventAddKeyLegend()
+
+	return r.terminal.Flush()
+}
+
 // renderMonth renders a single month at the specified position
 func (r *Renderer) renderMonth(month time.Time, x, y int, selection *models.Selection) error {
 	fg, bg := r.terminal.GetDefaultColors()
@@ -430,6 +470,101 @@ func (r *Renderer) renderSelectedDateEventsWithSelection(selectedDate time.Time,
 	}
 }
 
+// renderSelectedDateEventsWithAddMode renders events for the selected date with add mode highlighting
+func (r *Renderer) renderSelectedDateEventsWithAddMode(selectedDate time.Time) {
+	fg, bg := r.terminal.GetDefaultColors()
+
+	// Calculate Y position for events section (after calendar, before key legend)
+	// Calendar starts at Y=2, month header + day headers + separator + 6 weeks = ~10 lines per month
+	eventsStartY := 13
+
+	// Calculate left alignment position to match calendar's left edge
+	width, _ := r.terminal.GetSize()
+	totalWidth := 3*r.monthWidth + 2*r.monthSpacing
+	startX := (width - totalWidth) / 2
+	eventsLeftX := startX + 1 // Align with calendar's leftmost day column
+
+	// Get events for the selected date
+	events := r.eventManager.GetEventsForDate(selectedDate)
+
+	// Render section header
+	dateStr := calendar.FormatDate(selectedDate)
+	headerText := fmt.Sprintf("Add new event for %s (Enter to add, Esc to cancel):", dateStr)
+
+	var headerFg termbox.Attribute
+	if r.terminal.IsColorSupported() {
+		headerFg = termbox.ColorYellow | termbox.AttrBold
+	} else {
+		headerFg = termbox.AttrBold
+	}
+
+	r.terminal.Print(eventsLeftX, eventsStartY, headerText, headerFg, bg)
+
+	// First render existing events (up to 9 to leave room for the new event row)
+	maxExistingEvents := 9
+	if len(events) > maxExistingEvents {
+		maxExistingEvents = 9
+	}
+
+	for i := 0; i < maxExistingEvents && i < len(events); i++ {
+		event := events[i]
+		timeStr := event.GetTimeString()
+		description := event.Description
+
+		var eventFg termbox.Attribute
+		if r.terminal.IsColorSupported() {
+			eventFg = termbox.ColorWhite
+		} else {
+			eventFg = fg
+		}
+
+		// Render existing event as single line with normal formatting
+		eventY := eventsStartY + 1 + i
+		eventText := fmt.Sprintf("  %s - %s", timeStr, description)
+
+		// Calculate available width from left position to right margin
+		maxEventWidth := width - eventsLeftX - 4 // Leave some right margin
+		if len(eventText) > maxEventWidth {
+			eventText = eventText[:maxEventWidth-3] + "..."
+		}
+
+		r.terminal.Print(eventsLeftX, eventY, eventText, eventFg, bg)
+	}
+
+	// Now render the highlighted empty row for adding new event
+	addEventY := eventsStartY + 1 + maxExistingEvents
+
+	var addEventFg, addEventBg termbox.Attribute
+	if r.terminal.IsColorSupported() {
+		addEventFg = termbox.ColorBlack | termbox.AttrBold
+		addEventBg = termbox.ColorYellow // Yellow background for selection
+	} else {
+		addEventFg = termbox.ColorDefault | termbox.AttrReverse | termbox.AttrBold
+		addEventBg = termbox.ColorDefault
+	}
+
+	// Render the empty highlighted row for new event
+	newEventText := "> [New Event]"
+	r.terminal.Print(eventsLeftX, addEventY, newEventText, addEventFg, addEventBg)
+
+	// Fill the rest of the line with the background color
+	for x := eventsLeftX + len(newEventText); x < width; x++ {
+		r.terminal.SetCell(x, addEventY, ' ', addEventFg, addEventBg)
+	}
+
+	// Show "and X more" if there are additional existing events
+	if len(events) > maxExistingEvents {
+		moreText := fmt.Sprintf("... and %d more existing events", len(events)-maxExistingEvents)
+		var moreFg termbox.Attribute
+		if r.terminal.IsColorSupported() {
+			moreFg = termbox.ColorMagenta
+		} else {
+			moreFg = fg
+		}
+		r.terminal.Print(eventsLeftX, addEventY+1, moreText, moreFg, bg)
+	}
+}
+
 // renderEventSelectionKeyLegend renders the key bindings legend for event selection mode
 func (r *Renderer) renderEventSelectionKeyLegend() {
 	_, height := r.terminal.GetSize()
@@ -438,6 +573,17 @@ func (r *Renderer) renderEventSelectionKeyLegend() {
 	fg, bg := r.terminal.GetDefaultColors()
 
 	legend := "↑↓: select event  Enter: delete  Esc: cancel"
+	r.terminal.PrintCentered(legendY, legend, fg, bg)
+}
+
+// renderEventAddKeyLegend renders the key bindings legend for event add mode
+func (r *Renderer) renderEventAddKeyLegend() {
+	_, height := r.terminal.GetSize()
+	legendY := height - 2
+
+	fg, bg := r.terminal.GetDefaultColors()
+
+	legend := "Enter: add event  Esc: cancel"
 	r.terminal.PrintCentered(legendY, legend, fg, bg)
 }
 
@@ -628,6 +774,40 @@ func (r *Renderer) RenderInputPrompt(prompt, input string) error {
 	// Display input with cursor
 	inputText := input + "_"
 	r.terminal.PrintCentered(inputY, inputText, fg, bg)
+
+	return r.terminal.Flush()
+}
+
+// RenderInlineInput renders input directly on the highlighted event line
+func (r *Renderer) RenderInlineInput(x, y int, prompt, input string) error {
+	width, _ := r.terminal.GetSize()
+
+	// Use highlighting colors similar to event selection
+	var inputFg, inputBg termbox.Attribute
+	if r.terminal.IsColorSupported() {
+		inputFg = termbox.ColorBlack | termbox.AttrBold
+		inputBg = termbox.ColorYellow // Yellow background for input
+	} else {
+		inputFg = termbox.ColorDefault | termbox.AttrReverse | termbox.AttrBold
+		inputBg = termbox.ColorDefault
+	}
+
+	// Clear the entire line first
+	for i := x; i < width; i++ {
+		r.terminal.SetCell(i, y, ' ', inputFg, inputBg)
+	}
+
+	// Create the display text with cursor
+	displayText := fmt.Sprintf("> %s %s_", prompt, input)
+
+	// Truncate if too long
+	maxWidth := width - x - 2
+	if len(displayText) > maxWidth {
+		displayText = displayText[:maxWidth-3] + "..."
+	}
+
+	// Display the input line
+	r.terminal.Print(x, y, displayText, inputFg, inputBg)
 
 	return r.terminal.Flush()
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/nsf/termbox-go"
 	"go-ascii-calendar/config"
@@ -18,6 +17,7 @@ type AppState int
 const (
 	StateCalendar               AppState = iota
 	StateCalendarEventSelection          // New state for selecting events within calendar view
+	StateCalendarEventAdd                // New state for adding events within calendar view
 	StateEventList
 	StateAddEvent
 )
@@ -115,6 +115,8 @@ func (app *Application) handleAction(action terminal.KeyAction) bool {
 		return app.handleCalendarAction(action)
 	case StateCalendarEventSelection:
 		return app.handleCalendarEventSelectionAction(action)
+	case StateCalendarEventAdd:
+		return app.handleCalendarEventAddAction(action)
 	case StateEventList:
 		return app.handleEventListAction(action)
 	case StateAddEvent:
@@ -155,7 +157,9 @@ func (app *Application) handleCalendarAction(action terminal.KeyAction) bool {
 		app.selectedEventIndex = 0 // Initialize event selection
 
 	case terminal.ActionAddEvent:
-		app.processAddEvent()
+		// Enter event add mode in calendar view
+		app.state = StateCalendarEventAdd
+		app.selectedEventIndex = 0
 
 	case terminal.ActionDeleteEvent:
 		// Enter event selection mode in calendar view
@@ -201,6 +205,29 @@ func (app *Application) handleCalendarEventSelectionAction(action terminal.KeyAc
 
 	default:
 		// For other keys, ignore them in event selection mode
+		return false
+	}
+
+	return false
+}
+
+// handleCalendarEventAddAction handles actions when adding events in calendar view
+func (app *Application) handleCalendarEventAddAction(action terminal.KeyAction) bool {
+	switch action {
+	case terminal.ActionQuit:
+		return true // Exit application
+
+	case terminal.ActionBack:
+		// Exit event add mode and return to calendar navigation
+		app.state = StateCalendar
+		app.selectedEventIndex = 0
+
+	case terminal.ActionShowEvents:
+		// Enter key - start adding the event
+		app.processAddEventFromCalendar()
+
+	default:
+		// For other keys, ignore them in event add mode
 		return false
 	}
 
@@ -263,6 +290,10 @@ func (app *Application) renderCurrentView() error {
 		// Render calendar with event selection highlighting
 		return app.renderer.RenderCalendarWithEventSelection(app.calendar, app.selection, app.selectedEventIndex)
 
+	case StateCalendarEventAdd:
+		// Render calendar with event add highlighting
+		return app.renderer.RenderCalendarWithEventAdd(app.calendar, app.selection)
+
 	case StateEventList:
 		selectedDate := app.navigation.GetCurrentSelection()
 		eventList := app.events.GetEventsForDate(selectedDate)
@@ -315,7 +346,7 @@ func (app *Application) processDeleteEvent() {
 	if len(events) == 1 {
 		// Only one event, delete it directly after confirmation
 		event := events[0]
-		confirmMsg := fmt.Sprintf("Delete event: %s - %s? (y/N)", event.GetTimeString(), event.Description)
+		confirmMsg := fmt.Sprintf("Delete event: %s - %s? (Enter: confirm, Esc: cancel)", event.GetTimeString(), event.Description)
 
 		if app.confirmAction(confirmMsg) {
 			err := app.events.DeleteEvent(event)
@@ -331,7 +362,7 @@ func (app *Application) processDeleteEvent() {
 	// Multiple events - let user select which one to delete
 	selectedEvent := app.selectEventFromList(events, "Select event to delete:")
 	if selectedEvent != nil {
-		confirmMsg := fmt.Sprintf("Delete event: %s - %s? (y/N)", selectedEvent.GetTimeString(), selectedEvent.Description)
+		confirmMsg := fmt.Sprintf("Delete event: %s - %s? (Enter: confirm, Esc: cancel)", selectedEvent.GetTimeString(), selectedEvent.Description)
 
 		if app.confirmAction(confirmMsg) {
 			err := app.events.DeleteEvent(*selectedEvent)
@@ -436,7 +467,7 @@ func (app *Application) processDeleteEventFromList() {
 	}
 
 	event := events[app.selectedEventIndex]
-	confirmMsg := fmt.Sprintf("Delete event: %s - %s? (y/N)", event.GetTimeString(), event.Description)
+	confirmMsg := fmt.Sprintf("Delete event: %s - %s? (Enter: confirm, Esc: cancel)", event.GetTimeString(), event.Description)
 
 	if app.confirmAction(confirmMsg) {
 		err := app.events.DeleteEvent(event)
@@ -503,6 +534,56 @@ func (app *Application) processEditEventFromList() {
 	}
 }
 
+// processAddEventFromCalendar handles adding an event from the calendar view with inline input
+func (app *Application) processAddEventFromCalendar() {
+	selectedDate := app.navigation.GetCurrentSelection()
+
+	// Calculate coordinates for inline input (same as renderSelectedDateEventsWithAddMode)
+	width, _ := app.terminal.GetSize()
+	totalWidth := 3*24 + 2*2 // monthWidth=24, monthSpacing=2 (from renderer)
+	startX := (width - totalWidth) / 2
+	eventsLeftX := startX + 1
+	eventsStartY := 13
+
+	// Get existing events to calculate the Y position
+	events := app.events.GetEventsForDate(selectedDate)
+	maxExistingEvents := 9
+	if len(events) > maxExistingEvents {
+		maxExistingEvents = 9
+	}
+	addEventY := eventsStartY + 1 + maxExistingEvents
+
+	// Get time input using inline input
+	timeStr, ok := app.input.GetInlineTextInput(eventsLeftX, addEventY, "Time:", 5, app.renderer)
+	if !ok {
+		// User cancelled, return to calendar
+		app.state = StateCalendar
+		app.selectedEventIndex = 0
+		return
+	}
+
+	// Get description input using inline input
+	description, ok := app.input.GetInlineTextInput(eventsLeftX, addEventY, "Description:", 100, app.renderer)
+	if !ok {
+		// User cancelled, return to calendar
+		app.state = StateCalendar
+		app.selectedEventIndex = 0
+		return
+	}
+
+	// Add the event
+	err := app.events.AddEvent(selectedDate, timeStr, description)
+	if err != nil {
+		app.showError(fmt.Sprintf("Error adding event: %v", err))
+	} else {
+		app.showMessage("Event added successfully!")
+	}
+
+	// Return to calendar view
+	app.state = StateCalendar
+	app.selectedEventIndex = 0
+}
+
 // navigateCalendarEventUp moves selection up in the calendar events list
 func (app *Application) navigateCalendarEventUp() {
 	selectedDate := app.navigation.GetCurrentSelection()
@@ -540,7 +621,7 @@ func (app *Application) processDeleteSelectedCalendarEvent() {
 	}
 
 	event := events[app.selectedEventIndex]
-	confirmMsg := fmt.Sprintf("Delete event: %s - %s? (y/N)", event.GetTimeString(), event.Description)
+	confirmMsg := fmt.Sprintf("Delete event: %s - %s? (Enter: confirm, Esc: cancel)", event.GetTimeString(), event.Description)
 
 	if app.confirmAction(confirmMsg) {
 		err := app.events.DeleteEvent(event)
@@ -564,21 +645,15 @@ func (app *Application) processDeleteSelectedCalendarEvent() {
 func (app *Application) showError(message string) {
 	app.renderer.RenderMessage(message, true)
 	app.terminal.Flush()
-
-	// Wait for a short time to let user see the message
-	time.Sleep(2 * time.Second)
 }
 
 // showMessage displays a success message
 func (app *Application) showMessage(message string) {
 	app.renderer.RenderMessage(message, false)
 	app.terminal.Flush()
-
-	// Wait for a short time to let user see the message
-	time.Sleep(2 * time.Second)
 }
 
-// confirmAction prompts the user for confirmation (y/N)
+// confirmAction prompts the user for confirmation (Enter/Esc)
 func (app *Application) confirmAction(message string) bool {
 	// Display the confirmation message
 	app.renderer.RenderMessage(message, false)
@@ -587,12 +662,12 @@ func (app *Application) confirmAction(message string) bool {
 	// Wait for user input
 	event := app.input.WaitForKey()
 
-	// Check for 'y' or 'Y' key press
-	if event.Ch == 'y' || event.Ch == 'Y' {
+	// Check for Enter key (confirm) or Esc key (cancel)
+	if event.Key == termbox.KeyEnter {
 		return true
 	}
 
-	return false
+	return false // Any other key (including Esc) cancels
 }
 
 // selectEventFromList allows the user to select an event from a list
