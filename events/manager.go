@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"go-ascii-calendar/calendar"
+	"go-ascii-calendar/config"
 	"go-ascii-calendar/models"
 	"go-ascii-calendar/storage"
 )
@@ -13,18 +14,38 @@ import (
 // Manager handles event operations and integrates with storage
 type Manager struct {
 	events []models.Event
+	config *config.Config
 }
 
-// NewManager creates a new event manager
+// NewManager creates a new event manager (legacy function)
 func NewManager() *Manager {
 	return &Manager{
 		events: make([]models.Event, 0),
+		config: nil,
+	}
+}
+
+// NewManagerWithConfig creates a new event manager with configuration
+func NewManagerWithConfig(cfg *config.Config) *Manager {
+	return &Manager{
+		events: make([]models.Event, 0),
+		config: cfg,
 	}
 }
 
 // LoadEvents loads all events from storage on application startup
 func (m *Manager) LoadEvents() error {
-	events, err := storage.LoadEvents()
+	var events []models.Event
+	var err error
+
+	if m.config != nil {
+		// Use configured path with automatic migration
+		events, err = storage.LoadEventsWithConfig(m.config.GetEventsFilePath())
+	} else {
+		// Fallback to legacy text format
+		events, err = storage.LoadEvents()
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to load events: %v", err)
 	}
@@ -102,8 +123,15 @@ func (m *Manager) AddEvent(date time.Time, timeStr, description string) error {
 	}
 
 	// Save to storage
-	if err := storage.SaveEvent(event); err != nil {
-		return fmt.Errorf("failed to save event: %v", err)
+	if m.config != nil {
+		if err := storage.SaveEventWithConfig(event, m.config.GetEventsFilePath()); err != nil {
+			return fmt.Errorf("failed to save event: %v", err)
+		}
+	} else {
+		// Fallback to legacy format
+		if err := storage.SaveEvent(event); err != nil {
+			return fmt.Errorf("failed to save event: %v", err)
+		}
 	}
 
 	// Add to in-memory collection
@@ -170,8 +198,15 @@ func (m *Manager) ReloadEvents() error {
 // DeleteEvent deletes an event from both storage and memory
 func (m *Manager) DeleteEvent(eventToDelete models.Event) error {
 	// Delete from storage first
-	if err := storage.DeleteEvent(eventToDelete); err != nil {
-		return fmt.Errorf("failed to delete event from storage: %v", err)
+	if m.config != nil {
+		if err := storage.DeleteEventWithConfig(eventToDelete, m.config.GetEventsFilePath()); err != nil {
+			return fmt.Errorf("failed to delete event from storage: %v", err)
+		}
+	} else {
+		// Fallback to legacy format
+		if err := storage.DeleteEvent(eventToDelete); err != nil {
+			return fmt.Errorf("failed to delete event from storage: %v", err)
+		}
 	}
 
 	// Remove from in-memory collection
@@ -227,8 +262,15 @@ func (m *Manager) EditEvent(oldEvent models.Event, date time.Time, timeStr, desc
 	}
 
 	// Update in storage first
-	if err := storage.UpdateEvent(oldEvent, newEvent); err != nil {
-		return fmt.Errorf("failed to update event in storage: %v", err)
+	if m.config != nil {
+		if err := storage.UpdateEventWithConfig(oldEvent, newEvent, m.config.GetEventsFilePath()); err != nil {
+			return fmt.Errorf("failed to update event in storage: %v", err)
+		}
+	} else {
+		// Fallback to legacy format
+		if err := storage.UpdateEvent(oldEvent, newEvent); err != nil {
+			return fmt.Errorf("failed to update event in storage: %v", err)
+		}
 	}
 
 	// Update in-memory collection

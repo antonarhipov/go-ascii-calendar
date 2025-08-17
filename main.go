@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/nsf/termbox-go"
+	"go-ascii-calendar/config"
 	"go-ascii-calendar/events"
 	"go-ascii-calendar/models"
 	"go-ascii-calendar/terminal"
@@ -22,6 +23,7 @@ const (
 
 // Application holds the main application components
 type Application struct {
+	config             *config.Config
 	terminal           *terminal.Terminal
 	renderer           *terminal.Renderer
 	input              *terminal.InputHandler
@@ -33,14 +35,15 @@ type Application struct {
 	selectedEventIndex int // Index of currently selected event in events view
 }
 
-// NewApplication creates a new application instance
-func NewApplication() *Application {
+// NewApplication creates a new application instance with configuration
+func NewApplication(cfg *config.Config) *Application {
 	term := terminal.NewTerminal()
-	eventManager := events.NewManager()
+	eventManager := events.NewManagerWithConfig(cfg)
 	cal := models.NewCalendar()
 	sel := models.NewSelection(cal)
 
 	return &Application{
+		config:     cfg,
 		terminal:   term,
 		renderer:   terminal.NewRenderer(term, eventManager),
 		input:      terminal.NewInputHandler(term),
@@ -546,7 +549,14 @@ func (app *Application) selectEventFromList(events []models.Event, title string)
 }
 
 func main() {
-	app := NewApplication()
+	// Load configuration from command line and config file
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	// Create application with configuration
+	app := NewApplication(cfg)
 
 	if err := app.Initialize(); err != nil {
 		log.Fatalf("Failed to initialize application: %v", err)

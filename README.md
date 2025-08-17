@@ -55,6 +55,29 @@ Launch the application from your terminal:
 
 The application will display three calendar months side-by-side, with today's date highlighted and any existing events indicated.
 
+### Command Line Options
+
+The application supports several command line options for configuration:
+
+```bash
+# Use default configuration
+./ascii-calendar
+
+# Specify custom events file location
+./ascii-calendar -f /path/to/my/events.json
+
+# Specify custom configuration file location
+./ascii-calendar -c /path/to/my/config.json
+
+# Use both custom configuration and events file
+./ascii-calendar -c /path/to/config.json -f /path/to/events.json
+```
+
+**Available Options:**
+- `-f <path>` - Path to events file (defaults to `~/.ascii-calendar/events.json`)
+- `-c <path>` - Path to configuration file (defaults to `~/.ascii-calendar/configuration.json`)
+- `-h` - Show help message with available options
+
 ### Key Bindings
 
 #### Navigation
@@ -93,33 +116,62 @@ The application will display three calendar months side-by-side, with today's da
 
 ## Event File Format
 
-Events are stored in a plain text file called `events.txt` in the same directory as the application. The format is:
+Events are stored in JSON format in `~/.ascii-calendar/events.json` by default. The JSON structure is:
 
-```
-YYYY-MM-DD|HH:MM|description
+```json
+{
+  "events": [
+    {
+      "date": "2025-08-16",
+      "time": "09:00",
+      "description": "Morning standup meeting"
+    },
+    {
+      "date": "2025-08-16",
+      "time": "14:30",
+      "description": "Project review session"
+    },
+    {
+      "date": "2025-08-17",
+      "time": "10:00",
+      "description": "Client presentation"
+    }
+  ]
+}
 ```
 
-### Examples
+### Configuration File
 
-```
-2025-08-16|09:00|Morning standup meeting
-2025-08-16|14:30|Project review session
-2025-08-17|10:00|Client presentation
-2025-08-18|15:00|Team lunch
+The application can be configured using a JSON configuration file at `~/.ascii-calendar/configuration.json`:
+
+```json
+{
+  "events_file_path": "/path/to/custom/events.json"
+}
 ```
 
 ### File Format Rules
 
 - **Date**: YYYY-MM-DD format (ISO 8601)
 - **Time**: HH:MM format in 24-hour time
-- **Separator**: Pipe character (|) separates fields
 - **Description**: Can contain spaces and most printable characters
-- **Encoding**: UTF-8 text file
-- **Line endings**: Unix-style (LF) preferred, but CR+LF also supported
+- **Encoding**: UTF-8 JSON file
+- **Location**: `~/.ascii-calendar/events.json` (configurable)
 
 ### Manual Editing
 
-You can manually edit the `events.txt` file with any text editor. The application will load changes on next startup. Invalid lines are skipped with a warning message.
+You can manually edit the JSON files with any text editor. The application will load changes on next startup. Invalid JSON will cause the application to report errors.
+
+### Migration from Old Format
+
+If you have an existing `events.txt` file in the old pipe-separated format, the application will automatically migrate it to the new JSON format on first startup. The migration will:
+
+1. Read events from the old `events.txt` file
+2. Convert them to JSON format 
+3. Save them to `~/.ascii-calendar/events.json`
+4. Display a confirmation message
+
+The old `events.txt` file will remain unchanged for backup purposes.
 
 ## Troubleshooting
 
@@ -160,20 +212,44 @@ You can manually edit the `events.txt` file with any text editor. The applicatio
 **Problem**: Events disappear after restarting the application.
 
 **Solutions**:
-- Check that the application has write permissions in its directory
-- Verify the `events.txt` file exists and isn't read-only
+- Check that the application has write permissions to `~/.ascii-calendar/` directory
+- Verify the `~/.ascii-calendar/events.json` file exists and isn't read-only
 - Look for error messages during event creation
-- Check available disk space
+- Check available disk space in your home directory
+- Try running with `-f /tmp/test-events.json` to test with a different location
 
-#### Events File Corruption
+#### Configuration Issues
 
-**Problem**: Error messages about malformed lines or events not loading properly.
+**Problem**: Application doesn't use custom configuration or file paths.
 
 **Solutions**:
-- Open `events.txt` in a text editor and check the format
-- Ensure each line follows the `YYYY-MM-DD|HH:MM|description` format
-- Remove or fix any lines that don't match the expected format
-- Check for invisible characters or encoding issues
+- Verify the configuration file is valid JSON format
+- Check that command line arguments are properly specified (`-c` for config, `-f` for events file)
+- Ensure the `~/.ascii-calendar/` directory exists and is writable
+- Try using absolute paths instead of relative paths
+- Run `./ascii-calendar -h` to see available options
+
+#### JSON File Corruption
+
+**Problem**: Error messages about malformed JSON or events not loading properly.
+
+**Solutions**:
+- Open `~/.ascii-calendar/events.json` in a text editor and validate the JSON format
+- Use an online JSON validator to check for syntax errors
+- Ensure the file follows the correct structure with `"events"` array
+- Check that all dates are in `YYYY-MM-DD` format and times in `HH:MM` format
+- Restore from backup or delete the file to start fresh (application will recreate it)
+
+#### Migration Issues
+
+**Problem**: Old `events.txt` file not migrating to new JSON format.
+
+**Solutions**:
+- Ensure the old `events.txt` file is in the same directory as the application
+- Check that the `~/.ascii-calendar/` directory can be created (permissions)
+- Look for migration messages in the terminal output
+- Manually specify the events file location with `-f` if needed
+- Verify the old file format follows `YYYY-MM-DD|HH:MM|description` pattern
 
 ### Performance Issues
 
