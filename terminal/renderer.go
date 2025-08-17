@@ -148,6 +148,46 @@ func (r *Renderer) RenderCalendarWithEventAdd(cal *models.Calendar, selection *m
 	return r.terminal.Flush()
 }
 
+// RenderCalendarWithEventEdit renders the calendar with event edit highlighting
+func (r *Renderer) RenderCalendarWithEventEdit(cal *models.Calendar, selection *models.Selection, selectedEventIndex int) error {
+	r.terminal.Clear()
+
+	// Get terminal size
+	width, height := r.terminal.GetSize()
+	if width < 80 || height < 24 {
+		r.terminal.PrintCentered(height/2, "Terminal too small! Minimum 80x24 required.",
+			termbox.ColorRed, termbox.ColorDefault)
+		return r.terminal.Flush()
+	}
+
+	// Calculate starting positions for three months
+	totalWidth := 3*r.monthWidth + 2*r.monthSpacing
+	startX := (width - totalWidth) / 2
+
+	prevMonth := cal.GetPreviousMonth()
+	currentMonth := cal.CurrentMonth
+	nextMonth := cal.GetNextMonth()
+
+	months := []time.Time{prevMonth, currentMonth, nextMonth}
+
+	// Render each month
+	for i, month := range months {
+		x := startX + i*(r.monthWidth+r.monthSpacing)
+		err := r.renderMonth(month, x, 2, selection)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Render events for selected date with edit mode highlighting
+	r.renderSelectedDateEventsWithEditMode(selection.SelectedDate, selectedEventIndex)
+
+	// Render key legend for event edit mode
+	r.renderEventEditKeyLegend()
+
+	return r.terminal.Flush()
+}
+
 // renderMonth renders a single month at the specified position
 func (r *Renderer) renderMonth(month time.Time, x, y int, selection *models.Selection) error {
 	fg, bg := r.terminal.GetDefaultColors()
@@ -470,6 +510,118 @@ func (r *Renderer) renderSelectedDateEventsWithSelection(selectedDate time.Time,
 	}
 }
 
+// renderSelectedDateEventsWithEditMode renders events for the selected date with edit mode highlighting
+func (r *Renderer) renderSelectedDateEventsWithEditMode(selectedDate time.Time, selectedEventIndex int) {
+	fg, bg := r.terminal.GetDefaultColors()
+
+	// Calculate Y position for events section (after calendar, before key legend)
+	// Calendar starts at Y=2, month header + day headers + separator + 6 weeks = ~10 lines per month
+	eventsStartY := 13
+
+	// Calculate left alignment position to match calendar's left edge
+	width, _ := r.terminal.GetSize()
+	totalWidth := 3*r.monthWidth + 2*r.monthSpacing
+	startX := (width - totalWidth) / 2
+	eventsLeftX := startX + 1 // Align with calendar's leftmost day column
+
+	// Get events for the selected date
+	events := r.eventManager.GetEventsForDate(selectedDate)
+
+	// Render section header
+	dateStr := calendar.FormatDate(selectedDate)
+	headerText := fmt.Sprintf("Events for %s (Use ↑↓ to select, Enter to edit, Esc to cancel):", dateStr)
+
+	var headerFg termbox.Attribute
+	if r.terminal.IsColorSupported() {
+		headerFg = termbox.ColorYellow | termbox.AttrBold
+	} else {
+		headerFg = termbox.AttrBold
+	}
+
+	r.terminal.Print(eventsLeftX, eventsStartY, headerText, headerFg, bg)
+
+	// Render events or "no events" message
+	if len(events) == 0 {
+		var noEventsFg termbox.Attribute
+		if r.terminal.IsColorSupported() {
+			noEventsFg = termbox.ColorWhite
+		} else {
+			noEventsFg = fg
+		}
+		r.terminal.Print(eventsLeftX, eventsStartY+1, "No events scheduled", noEventsFg, bg)
+	} else {
+		// Show up to 10 events per date
+		maxEvents := 10
+		if len(events) > maxEvents {
+			maxEvents = 10
+		}
+
+		for i := 0; i < maxEvents && i < len(events); i++ {
+			event := events[i]
+			timeStr := event.GetTimeString()
+			description := event.Description
+
+			// Check if this is the selected event
+			isSelected := i == selectedEventIndex
+
+			var eventFg, eventBg termbox.Attribute
+			var prefix string
+
+			if isSelected {
+				// Selected event: use highlighting
+				prefix = "> "
+				if r.terminal.IsColorSupported() {
+					eventFg = termbox.ColorBlack | termbox.AttrBold
+					eventBg = termbox.ColorYellow // Yellow background for selection
+				} else {
+					eventFg = termbox.ColorDefault | termbox.AttrReverse | termbox.AttrBold
+					eventBg = termbox.ColorDefault
+				}
+			} else {
+				// Normal event colors
+				prefix = "  "
+				eventBg = bg
+				if r.terminal.IsColorSupported() {
+					eventFg = termbox.ColorWhite
+				} else {
+					eventFg = fg
+				}
+			}
+
+			// Render event as single line with selection indicator
+			eventY := eventsStartY + 1 + i
+			eventText := fmt.Sprintf("%s%s - %s", prefix, timeStr, description)
+
+			// Calculate available width from left position to right margin
+			maxEventWidth := width - eventsLeftX - 4 // Leave some right margin
+			if len(eventText) > maxEventWidth {
+				eventText = eventText[:maxEventWidth-3] + "..."
+			}
+
+			r.terminal.Print(eventsLeftX, eventY, eventText, eventFg, eventBg)
+
+			// Fill the rest of the line with the background color for selected events
+			if isSelected {
+				for x := eventsLeftX + len(eventText); x < width; x++ {
+					r.terminal.SetCell(x, eventY, ' ', eventFg, eventBg)
+				}
+			}
+		}
+
+		// Show "and X more" if there are additional events
+		if len(events) > maxEvents {
+			moreText := fmt.Sprintf("... and %d more events", len(events)-maxEvents)
+			var moreFg termbox.Attribute
+			if r.terminal.IsColorSupported() {
+				moreFg = termbox.ColorMagenta
+			} else {
+				moreFg = fg
+			}
+			r.terminal.Print(eventsLeftX, eventsStartY+1+maxEvents, moreText, moreFg, bg)
+		}
+	}
+}
+
 // renderSelectedDateEventsWithAddMode renders events for the selected date with add mode highlighting
 func (r *Renderer) renderSelectedDateEventsWithAddMode(selectedDate time.Time) {
 	fg, bg := r.terminal.GetDefaultColors()
@@ -584,6 +736,17 @@ func (r *Renderer) renderEventAddKeyLegend() {
 	fg, bg := r.terminal.GetDefaultColors()
 
 	legend := "Enter: add event  Esc: cancel"
+	r.terminal.PrintCentered(legendY, legend, fg, bg)
+}
+
+// renderEventEditKeyLegend renders the key bindings legend for event edit mode
+func (r *Renderer) renderEventEditKeyLegend() {
+	_, height := r.terminal.GetSize()
+	legendY := height - 2
+
+	fg, bg := r.terminal.GetDefaultColors()
+
+	legend := "↑↓: select event  Enter: edit  Esc: cancel"
 	r.terminal.PrintCentered(legendY, legend, fg, bg)
 }
 

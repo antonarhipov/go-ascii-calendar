@@ -19,6 +19,7 @@ const (
 	StateCalendar               AppState = iota
 	StateCalendarEventSelection          // New state for selecting events within calendar view
 	StateCalendarEventAdd                // New state for adding events within calendar view
+	StateCalendarEventEdit               // New state for editing events within calendar view
 	StateSearch                          // New state for search functionality
 	StateEventList
 	StateAddEvent
@@ -124,6 +125,8 @@ func (app *Application) handleAction(action terminal.KeyAction) bool {
 		return app.handleCalendarEventSelectionAction(action)
 	case StateCalendarEventAdd:
 		return app.handleCalendarEventAddAction(action)
+	case StateCalendarEventEdit:
+		return app.handleCalendarEventEditAction(action)
 	case StateSearch:
 		return app.handleSearchAction(action)
 	case StateEventList:
@@ -181,7 +184,15 @@ func (app *Application) handleCalendarAction(action terminal.KeyAction) bool {
 		}
 
 	case terminal.ActionEditEvent:
-		app.processEditEvent()
+		// Enter event edit selection mode in calendar view
+		selectedDate := app.navigation.GetCurrentSelection()
+		events := app.events.GetEventsForDate(selectedDate)
+		if len(events) > 0 {
+			app.state = StateCalendarEventEdit
+			app.selectedEventIndex = 0
+		} else {
+			app.showError("No events to edit on this date")
+		}
 
 	case terminal.ActionResetCurrent:
 		app.navigation.ResetToCurrent()
@@ -277,6 +288,35 @@ func (app *Application) handleCalendarEventAddAction(action terminal.KeyAction) 
 	return false
 }
 
+// handleCalendarEventEditAction handles actions when editing events in calendar view
+func (app *Application) handleCalendarEventEditAction(action terminal.KeyAction) bool {
+	switch action {
+	case terminal.ActionQuit:
+		return true // Exit application
+
+	case terminal.ActionBack:
+		// Exit event edit mode and return to calendar navigation
+		app.state = StateCalendar
+		app.selectedEventIndex = 0
+
+	case terminal.ActionMoveUp:
+		app.navigateCalendarEventEditUp()
+
+	case terminal.ActionMoveDown:
+		app.navigateCalendarEventEditDown()
+
+	case terminal.ActionShowEvents:
+		// Enter key - confirm editing of selected event
+		app.processEditSelectedCalendarEvent()
+
+	default:
+		// For other keys, ignore them in event edit mode
+		return false
+	}
+
+	return false
+}
+
 // handleEventListAction handles actions when viewing events
 func (app *Application) handleEventListAction(action terminal.KeyAction) bool {
 	switch action {
@@ -336,6 +376,10 @@ func (app *Application) renderCurrentView() error {
 	case StateCalendarEventAdd:
 		// Render calendar with event add highlighting
 		return app.renderer.RenderCalendarWithEventAdd(app.calendar, app.selection)
+
+	case StateCalendarEventEdit:
+		// Render calendar with event edit highlighting
+		return app.renderer.RenderCalendarWithEventEdit(app.calendar, app.selection, app.selectedEventIndex)
 
 	case StateSearch:
 		// Render calendar with search results
@@ -651,6 +695,26 @@ func (app *Application) navigateCalendarEventDown() {
 	}
 }
 
+// navigateCalendarEventEditUp moves selection up in the calendar events list for editing
+func (app *Application) navigateCalendarEventEditUp() {
+	selectedDate := app.navigation.GetCurrentSelection()
+	events := app.events.GetEventsForDate(selectedDate)
+
+	if len(events) > 0 && app.selectedEventIndex > 0 {
+		app.selectedEventIndex--
+	}
+}
+
+// navigateCalendarEventEditDown moves selection down in the calendar events list for editing
+func (app *Application) navigateCalendarEventEditDown() {
+	selectedDate := app.navigation.GetCurrentSelection()
+	events := app.events.GetEventsForDate(selectedDate)
+
+	if len(events) > 0 && app.selectedEventIndex < len(events)-1 {
+		app.selectedEventIndex++
+	}
+}
+
 // processDeleteSelectedCalendarEvent deletes the currently selected event in calendar view
 func (app *Application) processDeleteSelectedCalendarEvent() {
 	selectedDate := app.navigation.GetCurrentSelection()
@@ -684,6 +748,77 @@ func (app *Application) processDeleteSelectedCalendarEvent() {
 	}
 
 	// Return to calendar navigation after deletion attempt
+	app.state = StateCalendar
+	app.selectedEventIndex = 0
+}
+
+// processEditSelectedCalendarEvent edits the currently selected event in calendar view
+func (app *Application) processEditSelectedCalendarEvent() {
+	selectedDate := app.navigation.GetCurrentSelection()
+	events := app.events.GetEventsForDate(selectedDate)
+
+	if len(events) == 0 {
+		// No events to edit, exit edit mode
+		app.state = StateCalendar
+		app.selectedEventIndex = 0
+		return
+	}
+
+	if app.selectedEventIndex >= len(events) {
+		app.selectedEventIndex = len(events) - 1
+	}
+
+	eventToEdit := events[app.selectedEventIndex]
+
+	// Calculate coordinates for inline input (same as add mode)
+	width, _ := app.terminal.GetSize()
+	totalWidth := 3*24 + 2*2 // monthWidth=24, monthSpacing=2 (from renderer)
+	startX := (width - totalWidth) / 2
+	eventsLeftX := startX + 1
+	eventsStartY := 13
+
+	// Calculate Y position for the selected event
+	editEventY := eventsStartY + 1 + app.selectedEventIndex
+
+	// Get new time input with current value as default
+	currentTime := eventToEdit.GetTimeString()
+	timeStr, ok := app.input.GetInlineTextInputWithDefault(eventsLeftX, editEventY, "Time:", 5, currentTime, app.renderer)
+	if !ok {
+		// User cancelled, return to calendar
+		app.state = StateCalendar
+		app.selectedEventIndex = 0
+		return
+	}
+
+	// If user entered empty time, keep the current time
+	if timeStr == "" {
+		timeStr = currentTime
+	}
+
+	// Get new description input with current value as default
+	currentDesc := eventToEdit.Description
+	description, ok := app.input.GetInlineTextInputWithDefault(eventsLeftX, editEventY, "Description:", 100, currentDesc, app.renderer)
+	if !ok {
+		// User cancelled, return to calendar
+		app.state = StateCalendar
+		app.selectedEventIndex = 0
+		return
+	}
+
+	// If user entered empty description, keep the current description
+	if description == "" {
+		description = currentDesc
+	}
+
+	// Update the event
+	err := app.events.EditEvent(eventToEdit, selectedDate, timeStr, description)
+	if err != nil {
+		app.showError(fmt.Sprintf("Error editing event: %v", err))
+	} else {
+		app.showMessage("Event edited successfully!")
+	}
+
+	// Return to calendar view
 	app.state = StateCalendar
 	app.selectedEventIndex = 0
 }
