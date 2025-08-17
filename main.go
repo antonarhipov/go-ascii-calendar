@@ -663,6 +663,23 @@ func (app *Application) processAddEventFromEventsList() {
 		app.showError(fmt.Sprintf("Error adding event: %v", err))
 	} else {
 		app.showMessage("Event added successfully!")
+
+		// After adding the event, select and highlight the newly added event
+		// Get the updated events list
+		updatedEvents := app.events.GetEventsForDate(selectedDate)
+
+		// Find the newly added event (it should be the one with matching time and description)
+		for i, event := range updatedEvents {
+			if event.GetTimeString() == timeStr && event.Description == description {
+				app.selectedEventIndex = i
+				break
+			}
+		}
+
+		// If we couldn't find it (unlikely), select the last event
+		if app.selectedEventIndex >= len(updatedEvents) {
+			app.selectedEventIndex = len(updatedEvents) - 1
+		}
 	}
 }
 
