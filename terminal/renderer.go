@@ -59,6 +59,9 @@ func (r *Renderer) RenderCalendar(cal *models.Calendar, selection *models.Select
 		}
 	}
 
+	// Render events for selected date
+	r.renderSelectedDateEvents(selection.SelectedDate)
+
 	// Render key legend
 	r.renderKeyLegend()
 
@@ -194,6 +197,85 @@ func (r *Renderer) getDayAttributes(date time.Time, selection *models.Selection)
 	}
 
 	return fg, bg, text
+}
+
+// renderSelectedDateEvents renders events for the selected date below the calendar
+func (r *Renderer) renderSelectedDateEvents(selectedDate time.Time) {
+	fg, bg := r.terminal.GetDefaultColors()
+
+	// Calculate Y position for events section (after calendar, before key legend)
+	// Calendar starts at Y=2, month header + day headers + separator + 6 weeks = ~10 lines per month
+	eventsStartY := 13
+
+	// Get events for the selected date
+	events := r.eventManager.GetEventsForDate(selectedDate)
+
+	// Render section header
+	dateStr := calendar.FormatDate(selectedDate)
+	headerText := fmt.Sprintf("Events for %s:", dateStr)
+
+	var headerFg termbox.Attribute
+	if r.terminal.IsColorSupported() {
+		headerFg = termbox.ColorYellow | termbox.AttrBold
+	} else {
+		headerFg = termbox.AttrBold
+	}
+
+	r.terminal.PrintCentered(eventsStartY, headerText, headerFg, bg)
+
+	// Render events or "no events" message
+	if len(events) == 0 {
+		var noEventsFg termbox.Attribute
+		if r.terminal.IsColorSupported() {
+			noEventsFg = termbox.ColorWhite
+		} else {
+			noEventsFg = fg
+		}
+		r.terminal.PrintCentered(eventsStartY+1, "No events scheduled", noEventsFg, bg)
+	} else {
+		// Show up to 3 events to keep it compact
+		maxEvents := 3
+		if len(events) > maxEvents {
+			maxEvents = 3
+		}
+
+		for i := 0; i < maxEvents && i < len(events); i++ {
+			event := events[i]
+			timeStr := event.GetTimeString()
+			description := event.Description
+
+			var eventFg termbox.Attribute
+			if r.terminal.IsColorSupported() {
+				eventFg = termbox.ColorWhite
+			} else {
+				eventFg = fg
+			}
+
+			// Render event as single line
+			eventY := eventsStartY + 1 + i
+			eventText := fmt.Sprintf("%s - %s", timeStr, description)
+
+			// Truncate if too long (leave space for margins)
+			maxEventWidth := 76
+			if len(eventText) > maxEventWidth {
+				eventText = eventText[:maxEventWidth-3] + "..."
+			}
+
+			r.terminal.PrintCentered(eventY, eventText, eventFg, bg)
+		}
+
+		// Show "and X more" if there are additional events
+		if len(events) > maxEvents {
+			moreText := fmt.Sprintf("... and %d more events", len(events)-maxEvents)
+			var moreFg termbox.Attribute
+			if r.terminal.IsColorSupported() {
+				moreFg = termbox.ColorMagenta
+			} else {
+				moreFg = fg
+			}
+			r.terminal.PrintCentered(eventsStartY+1+maxEvents, moreText, moreFg, bg)
+		}
+	}
 }
 
 // renderKeyLegend renders the key bindings legend at the bottom

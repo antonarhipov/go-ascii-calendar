@@ -146,7 +146,7 @@ func (app *Application) handleCalendarAction(action terminal.KeyAction) bool {
 		app.state = StateEventList
 
 	case terminal.ActionAddEvent:
-		app.state = StateAddEvent
+		app.processAddEvent()
 
 	case terminal.ActionResetCurrent:
 		app.navigation.ResetToCurrent()
