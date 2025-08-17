@@ -157,9 +157,8 @@ func (app *Application) handleCalendarAction(action terminal.KeyAction) bool {
 		app.selectedEventIndex = 0 // Initialize event selection
 
 	case terminal.ActionAddEvent:
-		// Enter event add mode in calendar view
-		app.state = StateCalendarEventAdd
-		app.selectedEventIndex = 0
+		// Directly start adding event from calendar view
+		app.processAddEventFromCalendar()
 
 	case terminal.ActionDeleteEvent:
 		// Enter event selection mode in calendar view
