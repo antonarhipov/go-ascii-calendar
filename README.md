@@ -12,6 +12,8 @@ A terminal-based calendar application for managing events with a clean, keyboard
 - **Terminal compatibility**: Works in standard 80x24 monochrome terminals
 - **ASCII-safe**: Uses only standard ASCII characters for maximum compatibility
 
+![ASCII Calendar Demo](images/demo.gif)
+
 ## Installation
 
 ### Prerequisites
