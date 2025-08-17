@@ -33,6 +33,7 @@ const (
 	ActionShowEvents
 	ActionAddEvent
 	ActionBack
+	ActionResetCurrent
 )
 
 // ProcessKeyEvent processes a keyboard event and returns the corresponding action
@@ -51,6 +52,14 @@ func (ih *InputHandler) ProcessKeyEvent(event termbox.Event) KeyAction {
 		return ActionNone // Ignore space
 	case termbox.KeyCtrlC:
 		return ActionQuit
+	case termbox.KeyArrowLeft:
+		return ActionMoveLeft
+	case termbox.KeyArrowRight:
+		return ActionMoveRight
+	case termbox.KeyArrowUp:
+		return ActionMoveUp
+	case termbox.KeyArrowDown:
+		return ActionMoveDown
 	}
 
 	// Handle character keys (convert to lowercase for consistent processing)
@@ -79,6 +88,8 @@ func (ih *InputHandler) ProcessKeyEvent(event termbox.Event) KeyAction {
 		return ActionMoveDown
 	case 'a':
 		return ActionAddEvent
+	case 'c':
+		return ActionResetCurrent
 	default:
 		// Unrecognized key - could show a brief message
 		return ActionNone
@@ -108,6 +119,8 @@ func (ih *InputHandler) GetKeyDescription(action KeyAction) string {
 		return "Add new event"
 	case ActionBack:
 		return "Back to previous view"
+	case ActionResetCurrent:
+		return "Reset to current month/day"
 	default:
 		return "Unknown action"
 	}

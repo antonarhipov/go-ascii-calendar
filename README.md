@@ -60,15 +60,16 @@ The application will display three calendar months side-by-side, with today's da
 #### Navigation
 - **B** or **b** - Move backward one month (shifts the three-month window)
 - **N** or **n** - Move forward one month (shifts the three-month window)
-- **H** or **h** - Move selection left (one day)
-- **L** or **l** - Move selection right (one day)
-- **K** or **k** - Move selection up (one week)
-- **J** or **j** - Move selection down (one week)
+- **H** or **h** / **Left Arrow** - Move selection left (one day)
+- **L** or **l** / **Right Arrow** - Move selection right (one day)
+- **K** or **k** / **Up Arrow** - Move selection up (one week)
+- **J** or **j** / **Down Arrow** - Move selection down (one week)
+- **C** or **c** - Reset calendar to current month and select today's date
 
 #### Event Management
 - **Enter** - View events for the currently selected date
 - **A** or **a** - Add a new event to the selected date (only available when viewing events)
-- **Esc** - Back to previous view / Cancel current operation
+- **Esc** - Exit application (from main calendar) / Back to previous view / Cancel current operation
 
 #### Application Control
 - **Q** or **q** - Quit the application

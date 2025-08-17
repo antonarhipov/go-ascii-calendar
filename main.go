@@ -121,6 +121,9 @@ func (app *Application) handleCalendarAction(action terminal.KeyAction) bool {
 	case terminal.ActionQuit:
 		return true // Exit application
 
+	case terminal.ActionBack:
+		return true // Exit application when Esc is pressed on main screen
+
 	case terminal.ActionMonthPrev:
 		app.navigation.NavigateMonthBackward()
 
@@ -144,6 +147,9 @@ func (app *Application) handleCalendarAction(action terminal.KeyAction) bool {
 
 	case terminal.ActionAddEvent:
 		app.state = StateAddEvent
+
+	case terminal.ActionResetCurrent:
+		app.navigation.ResetToCurrent()
 	}
 
 	return false

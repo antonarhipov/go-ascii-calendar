@@ -203,7 +203,7 @@ func (r *Renderer) renderKeyLegend() {
 
 	fg, bg := r.terminal.GetDefaultColors()
 
-	legend := "B/N: month  H/J/K/L: move  Enter: events  A: add  Q: quit"
+	legend := "B/N: month  H/J/K/L: move  Enter: events  A: add  C: current  Q: quit"
 	r.terminal.PrintCentered(legendY, legend, fg, bg)
 }
 

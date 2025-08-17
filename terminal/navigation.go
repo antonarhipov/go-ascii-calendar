@@ -190,3 +190,16 @@ func (nc *NavigationController) GetVisibleDateRange() (start, end time.Time) {
 
 	return start, end
 }
+
+// ResetToCurrent resets the calendar view to the current month and selects today's date (C key)
+func (nc *NavigationController) ResetToCurrent() {
+	now := time.Now()
+
+	// Reset the calendar's CurrentMonth to the actual current month
+	currentMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	nc.calendar.CurrentMonth = currentMonth
+
+	// Set the selection to today's date
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	nc.selection.SelectedDate = today
+}
