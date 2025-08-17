@@ -334,7 +334,7 @@ func (app *Application) handleEventListAction(action terminal.KeyAction) bool {
 		app.navigateEventDown()
 
 	case terminal.ActionAddEvent:
-		app.processAddEvent()
+		app.processAddEventFromEventsList()
 
 	case terminal.ActionDeleteEvent:
 		app.processDeleteEventFromList()
@@ -574,7 +574,7 @@ func (app *Application) processDeleteEventFromList() {
 	}
 }
 
-// processEditEventFromList edits the currently selected event from the events list
+// processEditEventFromList edits the currently selected event from the events list using inline input
 func (app *Application) processEditEventFromList() {
 	selectedDate := app.navigation.GetCurrentSelection()
 	events := app.events.GetEventsForDate(selectedDate)
@@ -590,10 +590,15 @@ func (app *Application) processEditEventFromList() {
 
 	eventToEdit := events[app.selectedEventIndex]
 
-	// Get new time input (default to current time)
+	// Calculate coordinates for inline input on the selected event
+	// Events view has title at Y=2, separator at Y=4, events start at Y=6
+	startY := 6
+	editEventY := startY + app.selectedEventIndex // Position of the selected event
+	eventsLeftX := 2                              // Use left margin like the event list
+
+	// Get new time input with current value as default using inline input
 	currentTime := eventToEdit.GetTimeString()
-	prompt := fmt.Sprintf("Enter new time (current: %s):", currentTime)
-	timeStr, ok := app.input.GetTextInputWithPrompt(prompt, 5, app.renderer)
+	timeStr, ok := app.input.GetInlineTextInputWithDefault(eventsLeftX, editEventY, "Time:", 5, currentTime, app.renderer)
 	if !ok {
 		return // User cancelled
 	}
@@ -603,10 +608,9 @@ func (app *Application) processEditEventFromList() {
 		timeStr = currentTime
 	}
 
-	// Get new description input (default to current description)
+	// Get new description input with current value as default using inline input
 	currentDesc := eventToEdit.Description
-	prompt = fmt.Sprintf("Enter new description (current: %s):", currentDesc)
-	description, ok := app.input.GetTextInputWithPrompt(prompt, 100, app.renderer)
+	description, ok := app.input.GetInlineTextInputWithDefault(eventsLeftX, editEventY, "Description:", 100, currentDesc, app.renderer)
 	if !ok {
 		return // User cancelled
 	}
@@ -622,6 +626,43 @@ func (app *Application) processEditEventFromList() {
 		app.showError(fmt.Sprintf("Error editing event: %v", err))
 	} else {
 		app.showMessage("Event edited successfully!")
+	}
+}
+
+// processAddEventFromEventsList handles adding an event from the events view with inline input
+func (app *Application) processAddEventFromEventsList() {
+	selectedDate := app.navigation.GetCurrentSelection()
+
+	// Calculate coordinates for inline input in events view
+	// Events view has title at Y=2, separator at Y=4, events start at Y=6
+	// We want to add the new event at the bottom of the existing events list
+	events := app.events.GetEventsForDate(selectedDate)
+	startY := 6
+	addEventY := startY + len(events) // Position after existing events
+
+	// Use left margin like the event list (X=2)
+	eventsLeftX := 2
+
+	// Get time input using inline input
+	timeStr, ok := app.input.GetInlineTextInput(eventsLeftX, addEventY, "Time:", 5, app.renderer)
+	if !ok {
+		// User cancelled
+		return
+	}
+
+	// Get description input using inline input
+	description, ok := app.input.GetInlineTextInput(eventsLeftX, addEventY, "Description:", 100, app.renderer)
+	if !ok {
+		// User cancelled
+		return
+	}
+
+	// Add the event
+	err := app.events.AddEvent(selectedDate, timeStr, description)
+	if err != nil {
+		app.showError(fmt.Sprintf("Error adding event: %v", err))
+	} else {
+		app.showMessage("Event added successfully!")
 	}
 }
 
