@@ -187,14 +187,8 @@ func (r *Renderer) getDayAttributes(date time.Time, selection *models.Selection)
 		}
 	}
 
-	// Add event indicator
-	if hasEvents {
-		if dayNum < 10 {
-			text = fmt.Sprintf(" %d•", dayNum) // Use bullet instead of asterisk
-		} else {
-			text = fmt.Sprintf("%d•", dayNum) // Use bullet instead of asterisk
-		}
-	}
+	// Note: Event indication is now handled purely through color coding
+	// No additional visual indicators (bullets, asterisks) are added
 
 	return fg, bg, text
 }
