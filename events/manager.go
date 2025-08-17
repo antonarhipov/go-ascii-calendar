@@ -63,10 +63,10 @@ func (m *Manager) GetAllEvents() []models.Event {
 // GetEventsForDate returns all events for a specific date, sorted by time ascending
 func (m *Manager) GetEventsForDate(date time.Time) []models.Event {
 	var dateEvents []models.Event
-	targetDate := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+	targetDate := calendar.NormalizeDate(date)
 
 	for _, event := range m.events {
-		eventDate := time.Date(event.Date.Year(), event.Date.Month(), event.Date.Day(), 0, 0, 0, 0, event.Date.Location())
+		eventDate := calendar.NormalizeDate(event.Date)
 		if eventDate.Equal(targetDate) {
 			dateEvents = append(dateEvents, event)
 		}
@@ -82,10 +82,10 @@ func (m *Manager) GetEventsForDate(date time.Time) []models.Event {
 
 // HasEventsForDate checks if there are any events for a specific date
 func (m *Manager) HasEventsForDate(date time.Time) bool {
-	targetDate := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+	targetDate := calendar.NormalizeDate(date)
 
 	for _, event := range m.events {
-		eventDate := time.Date(event.Date.Year(), event.Date.Month(), event.Date.Day(), 0, 0, 0, 0, event.Date.Location())
+		eventDate := calendar.NormalizeDate(event.Date)
 		if eventDate.Equal(targetDate) {
 			return true
 		}
@@ -174,7 +174,7 @@ func (m *Manager) GetEventsInDateRange(startDate, endDate time.Time) []models.Ev
 	var rangeEvents []models.Event
 
 	for _, event := range m.events {
-		eventDate := time.Date(event.Date.Year(), event.Date.Month(), event.Date.Day(), 0, 0, 0, 0, event.Date.Location())
+		eventDate := calendar.NormalizeDate(event.Date)
 		if !eventDate.Before(startDate) && !eventDate.After(endDate) {
 			rangeEvents = append(rangeEvents, event)
 		}

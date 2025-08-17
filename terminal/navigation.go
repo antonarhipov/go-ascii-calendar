@@ -3,6 +3,7 @@ package terminal
 import (
 	"time"
 
+	"go-ascii-calendar/calendar"
 	"go-ascii-calendar/models"
 )
 
@@ -56,7 +57,7 @@ func (nc *NavigationController) NavigateDayLeft() {
 		if nc.selection.SelectedDate.Day() == 1 {
 			// Try to move to the last day of the previous month if it's visible
 			prevMonth := nc.selection.SelectedDate.AddDate(0, -1, 0)
-			lastDayOfPrevMonth := nc.getLastDayOfMonth(prevMonth)
+			lastDayOfPrevMonth := calendar.GetLastDayOfMonth(prevMonth)
 
 			if nc.isDateInVisibleRange(lastDayOfPrevMonth) {
 				nc.selection.SelectedDate = lastDayOfPrevMonth
@@ -74,7 +75,7 @@ func (nc *NavigationController) NavigateDayRight() {
 		nc.selection.SelectedDate = newDate
 	} else {
 		// Move to the next month if we're at the end of a month
-		daysInCurrentMonth := nc.getDaysInMonth(nc.selection.SelectedDate)
+		daysInCurrentMonth := calendar.GetDaysInMonth(nc.selection.SelectedDate)
 		if nc.selection.SelectedDate.Day() == daysInCurrentMonth {
 			// Try to move to the first day of the next month if it's visible
 			nextMonth := nc.selection.SelectedDate.AddDate(0, 1, 0)
@@ -118,7 +119,7 @@ func (nc *NavigationController) adjustSelectionForMonthChange(desiredDay int) {
 		currentMonth := nc.calendar.CurrentMonth
 
 		// Get the last day of the current month
-		daysInMonth := nc.getDaysInMonth(currentMonth)
+		daysInMonth := calendar.GetDaysInMonth(currentMonth)
 
 		// Use the desired day or the last valid day of the month
 		actualDay := desiredDay
@@ -137,23 +138,9 @@ func (nc *NavigationController) isDateInVisibleRange(date time.Time) bool {
 
 	// Calculate the start and end of the visible range
 	startRange := time.Date(prevMonth.Year(), prevMonth.Month(), 1, 0, 0, 0, 0, prevMonth.Location())
-	endRange := nc.getLastDayOfMonth(nextMonth)
+	endRange := calendar.GetLastDayOfMonth(nextMonth)
 
 	return !date.Before(startRange) && !date.After(endRange)
-}
-
-// getDaysInMonth returns the number of days in the given month
-func (nc *NavigationController) getDaysInMonth(date time.Time) int {
-	// Get the first day of the next month, then subtract one day
-	firstOfNextMonth := time.Date(date.Year(), date.Month()+1, 1, 0, 0, 0, 0, date.Location())
-	lastOfThisMonth := firstOfNextMonth.AddDate(0, 0, -1)
-	return lastOfThisMonth.Day()
-}
-
-// getLastDayOfMonth returns the last day of the given month
-func (nc *NavigationController) getLastDayOfMonth(date time.Time) time.Time {
-	firstDayNextMonth := time.Date(date.Year(), date.Month()+1, 1, 0, 0, 0, 0, date.Location())
-	return firstDayNextMonth.AddDate(0, 0, -1)
 }
 
 // GetCurrentSelection returns the currently selected date
@@ -186,7 +173,7 @@ func (nc *NavigationController) GetVisibleDateRange() (start, end time.Time) {
 	nextMonth := nc.calendar.GetNextMonth()
 
 	start = time.Date(prevMonth.Year(), prevMonth.Month(), 1, 0, 0, 0, 0, prevMonth.Location())
-	end = nc.getLastDayOfMonth(nextMonth)
+	end = calendar.GetLastDayOfMonth(nextMonth)
 
 	return start, end
 }

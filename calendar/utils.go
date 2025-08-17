@@ -106,6 +106,12 @@ func IsSameDate(date1, date2 time.Time) bool {
 	return date1.Year() == date2.Year() && date1.Month() == date2.Month() && date1.Day() == date2.Day()
 }
 
+// NormalizeDate returns a new time.Time with the same date but time set to midnight
+// This is useful for date comparisons that should ignore time components
+func NormalizeDate(date time.Time) time.Time {
+	return time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+}
+
 // GetCalendarWeeks returns the weeks needed to display a month's calendar
 // Each week is represented as an array of day numbers (0 for empty cells)
 func GetCalendarWeeks(month time.Time) [][]int {

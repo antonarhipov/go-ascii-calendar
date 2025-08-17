@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"go-ascii-calendar/calendar"
 	"go-ascii-calendar/models"
 )
 
@@ -46,7 +47,7 @@ func TestNavigateMonthBackward(t *testing.T) {
 	// Check that selection day is preserved when possible
 	if sel.SelectedDate.Day() != initialSelectedDay {
 		// This is okay if the previous month doesn't have the same day (e.g., Jan 31 -> Feb 28)
-		lastDayOfMonth := nc.getLastDayOfMonth(cal.CurrentMonth).Day()
+		lastDayOfMonth := calendar.GetLastDayOfMonth(cal.CurrentMonth).Day()
 		if sel.SelectedDate.Day() != lastDayOfMonth {
 			t.Errorf("Expected selected day to be preserved (%d) or adjusted to last day (%d), got %d",
 				initialSelectedDay, lastDayOfMonth, sel.SelectedDate.Day())
@@ -85,7 +86,7 @@ func TestNavigateMonthForward(t *testing.T) {
 	// Check that selection day is preserved when possible
 	if sel.SelectedDate.Day() != initialSelectedDay {
 		// This is okay if the next month doesn't have the same day (e.g., Jan 31 -> Feb 28)
-		lastDayOfMonth := nc.getLastDayOfMonth(cal.CurrentMonth).Day()
+		lastDayOfMonth := calendar.GetLastDayOfMonth(cal.CurrentMonth).Day()
 		if sel.SelectedDate.Day() != lastDayOfMonth {
 			t.Errorf("Expected selected day to be preserved (%d) or adjusted to last day (%d), got %d",
 				initialSelectedDay, lastDayOfMonth, sel.SelectedDate.Day())
@@ -259,9 +260,6 @@ func TestIsDateInVisibleRange(t *testing.T) {
 }
 
 func TestGetDaysInMonth(t *testing.T) {
-	cal := models.NewCalendar()
-	sel := models.NewSelection(cal)
-	nc := NewNavigationController(cal, sel)
 
 	tests := []struct {
 		name     string
@@ -276,7 +274,7 @@ func TestGetDaysInMonth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := nc.getDaysInMonth(tt.date)
+			result := calendar.GetDaysInMonth(tt.date)
 			if result != tt.expected {
 				t.Errorf("getDaysInMonth(%v) = %d, want %d", tt.date, result, tt.expected)
 			}

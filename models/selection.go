@@ -2,6 +2,8 @@ package models
 
 import (
 	"time"
+
+	"go-ascii-calendar/calendar"
 )
 
 // Selection tracks the current selected date and position within the calendar
@@ -28,7 +30,7 @@ func (s *Selection) IsWithinVisibleRange() bool {
 
 	// Check if selected date is within the range from first day of prev month to last day of next month
 	startRange := time.Date(prevMonth.Year(), prevMonth.Month(), 1, 0, 0, 0, 0, prevMonth.Location())
-	endRange := getLastDayOfMonth(nextMonth)
+	endRange := calendar.GetLastDayOfMonth(nextMonth)
 
 	return !s.SelectedDate.Before(startRange) && !s.SelectedDate.After(endRange)
 }
@@ -74,7 +76,7 @@ func (s *Selection) AdjustForMonthChange() {
 		desiredDay := s.SelectedDate.Day()
 
 		// Get the last day of the current month
-		lastDayOfMonth := getLastDayOfMonth(currentMonth).Day()
+		lastDayOfMonth := calendar.GetLastDayOfMonth(currentMonth).Day()
 
 		// Use the desired day or the last valid day of the month
 		if desiredDay > lastDayOfMonth {
@@ -91,13 +93,7 @@ func (s *Selection) isDateWithinBounds(date time.Time) bool {
 	nextMonth := s.Calendar.GetNextMonth()
 
 	startRange := time.Date(prevMonth.Year(), prevMonth.Month(), 1, 0, 0, 0, 0, prevMonth.Location())
-	endRange := getLastDayOfMonth(nextMonth)
+	endRange := calendar.GetLastDayOfMonth(nextMonth)
 
 	return !date.Before(startRange) && !date.After(endRange)
-}
-
-// getLastDayOfMonth returns the last day of the given month
-func getLastDayOfMonth(month time.Time) time.Time {
-	firstDayNextMonth := time.Date(month.Year(), month.Month()+1, 1, 0, 0, 0, 0, month.Location())
-	return firstDayNextMonth.AddDate(0, 0, -1)
 }

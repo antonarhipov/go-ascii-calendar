@@ -1,7 +1,10 @@
 package models
 
 import (
+	"sort"
 	"time"
+
+	"go-ascii-calendar/calendar"
 )
 
 // Calendar manages the three-month view state (previous, current, next months)
@@ -45,33 +48,29 @@ func (c *Calendar) NavigateForward() {
 // GetEventsForDate returns all events for a specific date, sorted by time
 func (c *Calendar) GetEventsForDate(date time.Time) []Event {
 	var events []Event
-	targetDate := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+	targetDate := calendar.NormalizeDate(date)
 
 	for _, event := range c.Events {
-		eventDate := time.Date(event.Date.Year(), event.Date.Month(), event.Date.Day(), 0, 0, 0, 0, event.Date.Location())
+		eventDate := calendar.NormalizeDate(event.Date)
 		if eventDate.Equal(targetDate) {
 			events = append(events, event)
 		}
 	}
 
-	// Sort events by time (bubble sort for simplicity)
-	for i := 0; i < len(events)-1; i++ {
-		for j := 0; j < len(events)-i-1; j++ {
-			if events[j].Time.After(events[j+1].Time) {
-				events[j], events[j+1] = events[j+1], events[j]
-			}
-		}
-	}
+	// Sort events by time ascending using Go's built-in sort
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].Time.Before(events[j].Time)
+	})
 
 	return events
 }
 
 // HasEventsForDate checks if there are any events for a specific date
 func (c *Calendar) HasEventsForDate(date time.Time) bool {
-	targetDate := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+	targetDate := calendar.NormalizeDate(date)
 
 	for _, event := range c.Events {
-		eventDate := time.Date(event.Date.Year(), event.Date.Month(), event.Date.Day(), 0, 0, 0, 0, event.Date.Location())
+		eventDate := calendar.NormalizeDate(event.Date)
 		if eventDate.Equal(targetDate) {
 			return true
 		}
