@@ -594,7 +594,7 @@ func (r *Renderer) renderKeyLegend() {
 
 	fg, bg := r.terminal.GetDefaultColors()
 
-	legend := "B/N: month  H/J/K/L: move  Enter: events  A: add  D: delete  E: edit  C: current  Q: quit"
+	legend := "B/N: month  H/J/K/L: move  Enter: events  A: add  D: delete  E: edit  C: current  F: search  Q: quit"
 	r.terminal.PrintCentered(legendY, legend, fg, bg)
 }
 
@@ -810,4 +810,184 @@ func (r *Renderer) RenderInlineInput(x, y int, prompt, input string) error {
 	r.terminal.Print(x, y, displayText, inputFg, inputBg)
 
 	return r.terminal.Flush()
+}
+
+// RenderCalendarWithSearch renders the calendar with search results
+func (r *Renderer) RenderCalendarWithSearch(cal *models.Calendar, selection *models.Selection, query string, results []models.Event, resultDates []string, selectedIndex int) error {
+	r.terminal.Clear()
+
+	// Get terminal size
+	width, height := r.terminal.GetSize()
+	if width < 80 || height < 24 {
+		r.terminal.PrintCentered(height/2, "Terminal too small! Minimum 80x24 required.",
+			termbox.ColorRed, termbox.ColorDefault)
+		return r.terminal.Flush()
+	}
+
+	// Calculate starting positions for three months
+	totalWidth := 3*r.monthWidth + 2*r.monthSpacing
+	startX := (width - totalWidth) / 2
+
+	prevMonth := cal.GetPreviousMonth()
+	currentMonth := cal.CurrentMonth
+	nextMonth := cal.GetNextMonth()
+
+	months := []time.Time{prevMonth, currentMonth, nextMonth}
+
+	// Render each month
+	for i, month := range months {
+		x := startX + i*(r.monthWidth+r.monthSpacing)
+		err := r.renderMonth(month, x, 2, selection)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Render search results under the calendar
+	r.renderSearchResults(query, results, selectedIndex)
+
+	// Render search key legend
+	r.renderSearchKeyLegend()
+
+	return r.terminal.Flush()
+}
+
+// renderSearchResults renders search results grouped by date under the calendar
+func (r *Renderer) renderSearchResults(query string, results []models.Event, selectedIndex int) {
+	fg, bg := r.terminal.GetDefaultColors()
+
+	// Calculate Y position for search results section
+	searchStartY := 13
+
+	// Calculate left alignment position to match calendar's left edge
+	width, height := r.terminal.GetSize()
+	totalWidth := 3*r.monthWidth + 2*r.monthSpacing
+	startX := (width - totalWidth) / 2
+	searchLeftX := startX + 1
+
+	// Render section header
+	headerText := fmt.Sprintf("Search results for \"%s\":", query)
+	if query == "" {
+		headerText = "Search results:"
+	}
+
+	var headerFg termbox.Attribute
+	if r.terminal.IsColorSupported() {
+		headerFg = termbox.ColorYellow | termbox.AttrBold
+	} else {
+		headerFg = termbox.AttrBold
+	}
+
+	r.terminal.Print(searchLeftX, searchStartY, headerText, headerFg, bg)
+
+	// Render search results
+	if len(results) == 0 {
+		var noResultsFg termbox.Attribute
+		if r.terminal.IsColorSupported() {
+			noResultsFg = termbox.ColorWhite
+		} else {
+			noResultsFg = fg
+		}
+		r.terminal.Print(searchLeftX, searchStartY+1, "No events found matching your search", noResultsFg, bg)
+	} else {
+		// Group results by date and render
+		currentY := searchStartY + 1
+		currentDate := ""
+
+		for i, event := range results {
+			if currentY >= height-4 {
+				// Too many results to display
+				moreText := fmt.Sprintf("... and %d more results", len(results)-i)
+				var moreFg termbox.Attribute
+				if r.terminal.IsColorSupported() {
+					moreFg = termbox.ColorMagenta
+				} else {
+					moreFg = fg
+				}
+				r.terminal.Print(searchLeftX, currentY, moreText, moreFg, bg)
+				break
+			}
+
+			eventDateStr := event.Date.Format("2006-01-02")
+
+			// Show date header if this is a new date
+			if eventDateStr != currentDate {
+				currentDate = eventDateStr
+				if currentY > searchStartY+1 {
+					currentY++ // Add space between date groups
+				}
+
+				// Format date header
+				dateHeader := event.Date.Format("Monday, January 2, 2006")
+				var dateFg termbox.Attribute
+				if r.terminal.IsColorSupported() {
+					dateFg = termbox.ColorCyan | termbox.AttrBold
+				} else {
+					dateFg = termbox.AttrBold
+				}
+				r.terminal.Print(searchLeftX, currentY, dateHeader, dateFg, bg)
+				currentY++
+			}
+
+			// Check if this is the selected result
+			isSelected := i == selectedIndex
+
+			var eventFg, eventBg termbox.Attribute
+			var prefix string
+
+			if isSelected {
+				// Selected result: use highlighting
+				prefix = "  > "
+				if r.terminal.IsColorSupported() {
+					eventFg = termbox.ColorBlack | termbox.AttrBold
+					eventBg = termbox.ColorYellow // Yellow background for selection
+				} else {
+					eventFg = termbox.ColorDefault | termbox.AttrReverse | termbox.AttrBold
+					eventBg = termbox.ColorDefault
+				}
+			} else {
+				// Normal result colors
+				prefix = "    "
+				eventBg = bg
+				if r.terminal.IsColorSupported() {
+					eventFg = termbox.ColorWhite
+				} else {
+					eventFg = fg
+				}
+			}
+
+			// Render event as single line
+			timeStr := event.GetTimeString()
+			description := event.Description
+			eventText := fmt.Sprintf("%s%s - %s", prefix, timeStr, description)
+
+			// Calculate available width from left position to right margin
+			maxEventWidth := width - searchLeftX - 4 // Leave some right margin
+			if len(eventText) > maxEventWidth {
+				eventText = eventText[:maxEventWidth-3] + "..."
+			}
+
+			r.terminal.Print(searchLeftX, currentY, eventText, eventFg, eventBg)
+
+			// Fill the rest of the line with the background color for selected results
+			if isSelected {
+				for x := searchLeftX + len(eventText); x < width; x++ {
+					r.terminal.SetCell(x, currentY, ' ', eventFg, eventBg)
+				}
+			}
+
+			currentY++
+		}
+	}
+}
+
+// renderSearchKeyLegend renders the key bindings legend for search mode
+func (r *Renderer) renderSearchKeyLegend() {
+	_, height := r.terminal.GetSize()
+	legendY := height - 2
+
+	fg, bg := r.terminal.GetDefaultColors()
+
+	legend := "↑↓: navigate results  Enter: go to date  Esc: back to calendar  F: search"
+	r.terminal.PrintCentered(legendY, legend, fg, bg)
 }

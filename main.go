@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/nsf/termbox-go"
 	"go-ascii-calendar/config"
@@ -18,6 +19,7 @@ const (
 	StateCalendar               AppState = iota
 	StateCalendarEventSelection          // New state for selecting events within calendar view
 	StateCalendarEventAdd                // New state for adding events within calendar view
+	StateSearch                          // New state for search functionality
 	StateEventList
 	StateAddEvent
 )
@@ -34,6 +36,11 @@ type Application struct {
 	selection          *models.Selection
 	state              AppState
 	selectedEventIndex int // Index of currently selected event in events view
+	// Search-related fields
+	searchQuery         string         // Current search query
+	searchResults       []models.Event // Search results
+	searchResultDates   []string       // Unique dates from search results for grouping
+	selectedResultIndex int            // Index of currently selected search result
 }
 
 // NewApplication creates a new application instance with configuration
@@ -117,6 +124,8 @@ func (app *Application) handleAction(action terminal.KeyAction) bool {
 		return app.handleCalendarEventSelectionAction(action)
 	case StateCalendarEventAdd:
 		return app.handleCalendarEventAddAction(action)
+	case StateSearch:
+		return app.handleSearchAction(action)
 	case StateEventList:
 		return app.handleEventListAction(action)
 	case StateAddEvent:
@@ -176,6 +185,41 @@ func (app *Application) handleCalendarAction(action terminal.KeyAction) bool {
 
 	case terminal.ActionResetCurrent:
 		app.navigation.ResetToCurrent()
+
+	case terminal.ActionSearch:
+		app.processSearch()
+	}
+
+	return false
+}
+
+// handleSearchAction handles actions when in search mode
+func (app *Application) handleSearchAction(action terminal.KeyAction) bool {
+	switch action {
+	case terminal.ActionQuit:
+		return true // Exit application
+
+	case terminal.ActionBack:
+		// Exit search mode and return to calendar
+		app.state = StateCalendar
+		app.searchQuery = ""
+		app.searchResults = nil
+		app.searchResultDates = nil
+		app.selectedResultIndex = 0
+
+	case terminal.ActionMoveUp:
+		app.navigateSearchResultUp()
+
+	case terminal.ActionMoveDown:
+		app.navigateSearchResultDown()
+
+	case terminal.ActionShowEvents:
+		// Enter key - navigate to selected date and close search
+		app.processSearchResultSelection()
+
+	default:
+		// For other keys, ignore them in search mode
+		return false
 	}
 
 	return false
@@ -292,6 +336,10 @@ func (app *Application) renderCurrentView() error {
 	case StateCalendarEventAdd:
 		// Render calendar with event add highlighting
 		return app.renderer.RenderCalendarWithEventAdd(app.calendar, app.selection)
+
+	case StateSearch:
+		// Render calendar with search results
+		return app.renderer.RenderCalendarWithSearch(app.calendar, app.selection, app.searchQuery, app.searchResults, app.searchResultDates, app.selectedResultIndex)
 
 	case StateEventList:
 		selectedDate := app.navigation.GetCurrentSelection()
@@ -721,6 +769,72 @@ func (app *Application) selectEventFromList(events []models.Event, title string)
 			}
 		}
 	}
+}
+
+// processSearch handles the search functionality workflow
+func (app *Application) processSearch() {
+	// Get search query input
+	query, ok := app.input.GetTextInputWithPrompt("Enter search query:", 100, app.renderer)
+	if !ok {
+		return // User cancelled
+	}
+
+	// Perform search
+	app.searchQuery = query
+	app.searchResults = app.events.SearchEvents(query)
+	app.selectedResultIndex = 0
+
+	// Build unique dates list for grouping
+	app.searchResultDates = make([]string, 0)
+	datesSeen := make(map[string]bool)
+	for _, event := range app.searchResults {
+		dateStr := event.Date.Format("2006-01-02")
+		if !datesSeen[dateStr] {
+			app.searchResultDates = append(app.searchResultDates, dateStr)
+			datesSeen[dateStr] = true
+		}
+	}
+
+	// Switch to search mode
+	app.state = StateSearch
+}
+
+// navigateSearchResultUp moves selection up in the search results
+func (app *Application) navigateSearchResultUp() {
+	if len(app.searchResults) > 0 && app.selectedResultIndex > 0 {
+		app.selectedResultIndex--
+	}
+}
+
+// navigateSearchResultDown moves selection down in the search results
+func (app *Application) navigateSearchResultDown() {
+	if len(app.searchResults) > 0 && app.selectedResultIndex < len(app.searchResults)-1 {
+		app.selectedResultIndex++
+	}
+}
+
+// processSearchResultSelection handles Enter key in search mode
+func (app *Application) processSearchResultSelection() {
+	if len(app.searchResults) == 0 {
+		return
+	}
+
+	// Get the selected search result
+	selectedEvent := app.searchResults[app.selectedResultIndex]
+
+	// Navigate calendar to the event's date
+	app.navigation.SetSelection(selectedEvent.Date)
+
+	// Update calendar to show the month containing this date
+	eventMonth := selectedEvent.Date
+	app.calendar.CurrentMonth = time.Date(eventMonth.Year(), eventMonth.Month(), 1, 0, 0, 0, 0, eventMonth.Location())
+
+	// Clear search state and return to calendar
+	app.searchQuery = ""
+	app.searchResults = nil
+	app.searchResultDates = nil
+	app.selectedResultIndex = 0
+	app.state = StateCalendar
 }
 
 func main() {

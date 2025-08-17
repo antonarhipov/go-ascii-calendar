@@ -3,6 +3,7 @@ package events
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"go-ascii-calendar/calendar"
@@ -291,4 +292,31 @@ func (m *Manager) EditEvent(oldEvent models.Event, date time.Time, timeStr, desc
 	}
 
 	return nil
+}
+
+// SearchEvents searches for events containing the query string in their description
+func (m *Manager) SearchEvents(query string) []models.Event {
+	if query == "" {
+		return []models.Event{}
+	}
+
+	var matchingEvents []models.Event
+	lowerQuery := strings.ToLower(query)
+
+	for _, event := range m.events {
+		// Search in description (case-insensitive)
+		if strings.Contains(strings.ToLower(event.Description), lowerQuery) {
+			matchingEvents = append(matchingEvents, event)
+		}
+	}
+
+	// Sort events by date, then by time
+	sort.Slice(matchingEvents, func(i, j int) bool {
+		if matchingEvents[i].Date.Equal(matchingEvents[j].Date) {
+			return matchingEvents[i].Time.Before(matchingEvents[j].Time)
+		}
+		return matchingEvents[i].Date.Before(matchingEvents[j].Date)
+	})
+
+	return matchingEvents
 }

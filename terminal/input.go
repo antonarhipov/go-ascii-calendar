@@ -36,6 +36,7 @@ const (
 	ActionEditEvent
 	ActionBack
 	ActionResetCurrent
+	ActionSearch
 )
 
 // ProcessKeyEvent processes a keyboard event and returns the corresponding action
@@ -96,6 +97,8 @@ func (ih *InputHandler) ProcessKeyEvent(event termbox.Event) KeyAction {
 		return ActionEditEvent
 	case 'c':
 		return ActionResetCurrent
+	case 'f':
+		return ActionSearch
 	default:
 		// Unrecognized key - could show a brief message
 		return ActionNone
@@ -131,6 +134,8 @@ func (ih *InputHandler) GetKeyDescription(action KeyAction) string {
 		return "Back to previous view"
 	case ActionResetCurrent:
 		return "Reset to current month/day"
+	case ActionSearch:
+		return "Search events"
 	default:
 		return "Unknown action"
 	}
