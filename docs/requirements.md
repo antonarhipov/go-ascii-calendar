@@ -1,87 +1,159 @@
-# Requirements Document
+# Enhanced Requirements Document
 
 ## Introduction
-This document specifies the functional and related non-functional requirements for a terminal-based (CLI/CUI) calendar application for scheduling events. Upon launch, the application displays three calendar months side-by-side (previous, current, next). Users navigate the three-month window with keyboard controls, select specific days, view events for a selected date, and add new events. All event data is persisted to a text file.
+This document specifies the functional and non-functional requirements for an advanced terminal-based (CLI/CUI) calendar application for comprehensive event management. Upon launch, the application displays three calendar months side-by-side (previous, current, next) with enhanced navigation, search capabilities, and sophisticated event management features. Users can navigate using both vim-style keys and arrow keys, perform inline event operations, search through events, and customize application behavior through configuration files.
 
-The intended environment is a standard terminal. Interaction is entirely keyboard-driven.
+The application supports JSON-based data persistence with automatic migration from legacy formats, configuration management through files and command-line options, real-time input validation, and enhanced visual feedback including color support with monochrome terminal compatibility.
 
-## Requirements
+The intended environment is a standard terminal with keyboard-driven interaction, supporting both basic monochrome terminals and modern color-enabled terminals.
 
-### Requirement 1: Three-Month Calendar Display on Startup
-- User Story: As a user, I want to see the previous, current, and next months side-by-side at startup so that I immediately understand the current date in context and can plan around it.
-- Acceptance Criteria:
-  - WHEN the application starts THEN the system SHALL render three calendar months side-by-side showing the previous, current, and next months relative to the system’s local date.
-  - WHEN rendering a month THEN the system SHALL show day-of-week headers and align date numbers under the correct weekdays, correctly handling varying month lengths and leap years.
-  - WHEN today’s date is within the three displayed months THEN the system SHALL visually distinguish today’s date from other dates.
-  - WHEN the terminal size is at least 80x24 characters THEN the system SHALL render the three-month view without truncation.
+## Enhanced Requirements
 
-### Requirement 2: Day Indicators in Calendar Grid
-- User Story: As a user, I want day cells to display indicators so that I can quickly identify special states such as selected day, today, or days with events.
-- Acceptance Criteria:
-  - WHEN a day has one or more events THEN the system SHALL display an event indicator in that day’s cell (e.g., a dot or marker) using ASCII-safe characters.
-  - WHEN a day is selected THEN the system SHALL visually highlight the selected day’s cell distinctly from other states.
-  - WHEN a day is both today and selected THEN the system SHALL present a combined, non-ambiguous indication (e.g., inverted colors plus a marker), ensuring both states are perceivable.
-  - WHEN indicators are rendered THEN the system SHALL avoid using symbols that conflict with date digits and SHALL maintain legibility in monochrome terminals.
+### Requirement 1: Three-Month Calendar Display with Enhanced Visual Indicators
+- **User Story**: As a user, I want to see the previous, current, and next months side-by-side at startup with clear visual indicators for today, selected dates, and event-containing days so that I can immediately understand the temporal context and event distribution.
+- **Acceptance Criteria**:
+    - WHEN the application starts THEN the system SHALL render three calendar months side-by-side showing the previous, current, and next months relative to the system's local date.
+    - WHEN rendering a month THEN the system SHALL show day-of-week headers with color coding (cyan in color terminals) and align date numbers under the correct weekdays.
+    - WHEN today's date is within the three displayed months THEN the system SHALL visually distinguish it with bright yellow text in color terminals or bold formatting in monochrome terminals.
+    - WHEN a day is selected THEN the system SHALL highlight it with blue background and white text in color terminals or reverse video in monochrome terminals.
+    - WHEN a day contains events THEN the system SHALL indicate this with green text color in color terminals while maintaining readability in monochrome terminals.
+    - WHEN a day is both today and selected THEN the system SHALL combine visual indicators with bright cyan background and white bold text.
+    - WHEN the terminal size is at least 80x24 characters THEN the system SHALL render the three-month view without truncation.
+    - WHEN events exist for the selected date THEN the system SHALL display up to 10 events in a dedicated section below the calendar, aligned with the calendar's left edge.
 
-### Requirement 3: Month Navigation with B/N Keys
-- User Story: As a user, I want to navigate the three-month window backward or forward by month so that I can browse past and future months.
-- Acceptance Criteria:
-  - WHEN the user presses 'B' or 'b' THEN the system SHALL shift the three-month window backward by one month (e.g., May–Jun–Jul becomes Apr–May–Jun).
-  - WHEN the user presses 'N' or 'n' THEN the system SHALL shift the three-month window forward by one month (e.g., May–Jun–Jul becomes Jun–Jul–Aug).
-  - WHEN navigation crosses year boundaries THEN the system SHALL correctly adjust the year (e.g., Jan back to Dec of the previous year).
-  - WHEN the window shifts THEN the system SHALL preserve the selected day number if it exists in the new context; otherwise, it SHALL select the last valid day of the corresponding month.
+### Requirement 2: Dual Navigation System with Enhanced Movement
+- **User Story**: As a user, I want flexible navigation options using both vim-style keys (H/J/K/L) and arrow keys, plus quick navigation shortcuts, so that I can efficiently move through dates regardless of my keyboard preference.
+- **Acceptance Criteria**:
+    - WHEN the user presses 'H', 'h', or Left Arrow THEN the system SHALL move the selection one day to the left, crossing month boundaries within the visible range.
+    - WHEN the user presses 'L', 'l', or Right Arrow THEN the system SHALL move the selection one day to the right, crossing month boundaries within the visible range.
+    - WHEN the user presses 'K', 'k', or Up Arrow THEN the system SHALL move the selection one week up (−7 days), staying within the visible three-month range.
+    - WHEN the user presses 'J', 'j', or Down Arrow THEN the system SHALL move the selection one week down (+7 days), staying within the visible three-month range.
+    - WHEN the user presses 'B' or 'b' THEN the system SHALL shift the three-month window backward by one month.
+    - WHEN the user presses 'N' or 'n' THEN the system SHALL shift the three-month window forward by one month.
+    - WHEN the user presses 'C' or 'c' THEN the system SHALL reset the calendar to the current month and select today's date.
+    - WHEN navigation crosses year boundaries THEN the system SHALL correctly handle year transitions.
 
-### Requirement 4: Day Navigation with H/J/K/L Keys
-- User Story: As a user, I want to move the selection among days using H, J, K, L so that I can quickly choose a specific date without leaving the keyboard.
-- Acceptance Criteria:
-  - WHEN the user presses 'H' or 'h' THEN the system SHALL move the selection one day to the left; if it is the first day of a month, it SHALL move into the previous visible month if applicable.
-  - WHEN the user presses 'L' or 'l' THEN the system SHALL move the selection one day to the right; if it is the last day of a month, it SHALL move into the next visible month if applicable.
-  - WHEN the user presses 'K' or 'k' THEN the system SHALL move the selection one week up (−7 days), staying within the visible three-month range when possible.
-  - WHEN the user presses 'J' or 'j' THEN the system SHALL move the selection one week down (+7 days), staying within the visible three-month range when possible.
-  - WHEN a movement would go beyond the currently visible three-month window THEN the system SHALL keep the selection at the nearest boundary day; the user can use 'B'/'N' to shift the window further.
+### Requirement 3: Advanced Event Management with Inline Operations
+- **User Story**: As a user, I want to add, edit, and delete events directly from the calendar view with visual feedback and confirmation prompts so that I can efficiently manage my schedule without navigating through multiple screens.
+- **Acceptance Criteria**:
+    - WHEN the user presses 'A' or 'a' in calendar view THEN the system SHALL immediately start the inline event addition process with time input validation.
+    - WHEN adding an event THEN the system SHALL highlight a "[New Event]" row below existing events and accept input directly on that line.
+    - WHEN the user presses 'D' or 'd' in calendar view THEN the system SHALL enter event selection mode, highlighting events below the calendar with arrow key navigation.
+    - WHEN the user presses 'E' or 'e' in calendar view THEN the system SHALL enter event edit mode, allowing selection and inline editing of existing events.
+    - WHEN in event selection mode THEN the system SHALL highlight the selected event with yellow background and show navigation instructions.
+    - WHEN confirming event deletion THEN the system SHALL use Enter for confirmation and Esc for cancellation.
+    - WHEN editing events THEN the system SHALL pre-fill current values and allow inline modification with real-time validation.
+    - WHEN operations complete THEN the system SHALL show non-blocking success messages and immediately update the calendar display.
 
-### Requirement 5: View Events for Selected Date (Enter Key)
-- User Story: As a user, I want to press Enter on a selected date to view its events so that I can see what is scheduled that day.
-- Acceptance Criteria:
-  - WHEN the user presses Enter on a selected date THEN the system SHALL display the list of events for that date within the UI (e.g., in a pane or panel) while retaining the three-month calendar context on screen.
-  - WHEN there are no events for the selected date THEN the system SHALL display a message indicating that no events are scheduled.
-  - WHEN events are listed THEN the system SHALL present them sorted by start time ascending.
-  - WHEN the events list is displayed THEN the selection for the date SHALL remain unchanged in the calendar.
+### Requirement 4: Real-Time Input Validation and Enhanced User Experience
+- **User Story**: As a user, I want real-time validation during time input and immediate feedback for all operations so that I can enter data efficiently without trial-and-error correction cycles.
+- **Acceptance Criteria**:
+    - WHEN entering time THEN the system SHALL validate input character-by-character, only allowing valid digits for each position.
+    - WHEN entering the first hour digit THEN the system SHALL only accept '1' or '2' (no hours starting with 0, 3, etc.).
+    - WHEN entering the second hour digit THEN the system SHALL validate based on the first digit (10-19 for '1', 20-23 for '2').
+    - WHEN entering two hour digits THEN the system SHALL automatically insert a colon and show minute input format.
+    - WHEN entering the first minute digit THEN the system SHALL only accept 0-5 (no minutes starting with 6-9).
+    - WHEN entering the second minute digit THEN the system SHALL accept any digit 0-9 to complete the time.
+    - WHEN time input is incomplete THEN the system SHALL show formatting hints with underscores (e.g., "14:3_").
+    - WHEN input validation fails THEN the system SHALL prevent invalid characters without error messages, maintaining smooth user experience.
 
-### Requirement 6: Add New Event (A Key)
-- User Story: As a user, I want to add a new event to the selected date by pressing 'A' so that I can schedule items directly from the calendar view.
-- Acceptance Criteria:
-  - WHEN the user presses 'A' or 'a' while the events list for a selected date is visible THEN the system SHALL prompt for the event time and description in sequence.
-  - WHEN prompted for time THEN the system SHALL accept input in HH:MM 24-hour format, using the selected date as the event date.
-  - WHEN the time input is invalid (e.g., not HH:MM, out of range) THEN the system SHALL inform the user of the error and re-prompt for a valid time without losing context.
-  - WHEN prompted for description THEN the system SHALL accept a non-empty text line as the event description; an empty description SHALL be rejected with an error prompt.
-  - WHEN a valid time and description are provided THEN the system SHALL persist the event to the storage file and immediately refresh the UI to show the new event and update the day indicator.
+### Requirement 5: Event Search and Discovery System
+- **User Story**: As a user, I want to search through my events by description and navigate to specific dates so that I can quickly find and access relevant events across my entire schedule.
+- **Acceptance Criteria**:
+    - WHEN the user presses 'F' or 'f' THEN the system SHALL prompt for a search query with live input feedback.
+    - WHEN a search query is entered THEN the system SHALL perform case-insensitive matching against event descriptions.
+    - WHEN search results exist THEN the system SHALL display them grouped by date under the calendar, sorted chronologically.
+    - WHEN displaying search results THEN the system SHALL highlight date headers and format each result with time and description.
+    - WHEN navigating search results THEN the system SHALL support up/down arrow key movement with visual selection highlighting.
+    - WHEN the user presses Enter on a search result THEN the system SHALL navigate the calendar to that event's date and close the search.
+    - WHEN the user presses Esc in search mode THEN the system SHALL cancel the search and return to normal calendar view.
+    - WHEN no search results are found THEN the system SHALL display a clear "No events found" message.
 
-### Requirement 7: Data Persistence to Text File
-- User Story: As a user, I want my events to be saved to a text file so that they persist across application restarts.
-- Acceptance Criteria:
-  - WHEN the application starts THEN the system SHALL load existing events from a text file named "events.txt" located in the application’s working directory; if the file does not exist, it SHALL start with an empty dataset.
-  - WHEN saving an event THEN the system SHALL append or write the event in a line-oriented format: YYYY-MM-DD|HH:MM|description, preserving spaces in the description.
-  - WHEN multiple events exist for the same date THEN the system SHALL load and display them all, sorted by time when listing.
-  - WHEN the storage file contains malformed lines THEN the system SHALL skip those lines, continue processing, and log or show a minimal warning message without terminating.
-  - WHEN file I/O errors occur (e.g., permission denied) THEN the system SHALL report the error to the user and SHALL not corrupt the existing file contents.
+### Requirement 6: Configuration Management and Persistence System
+- **User Story**: As a user, I want flexible storage options and configuration management so that I can customize file locations and integrate the application into my preferred workflow and file organization system.
+- **Acceptance Criteria**:
+    - WHEN the application starts THEN the system SHALL create a `~/.ascii-calendar/` directory if it doesn't exist.
+    - WHEN no custom paths are specified THEN the system SHALL use `~/.ascii-calendar/events.json` for event storage.
+    - WHEN the user provides `-f <path>` THEN the system SHALL use the specified path for event storage.
+    - WHEN the user provides `-c <path>` THEN the system SHALL load configuration from the specified JSON file.
+    - WHEN a configuration file exists THEN the system SHALL load settings from `~/.ascii-calendar/configuration.json`.
+    - WHEN an old `events.txt` file exists THEN the system SHALL automatically migrate it to JSON format and display confirmation.
+    - WHEN saving events THEN the system SHALL use structured JSON format with proper date, time, and description fields.
+    - WHEN file operations fail THEN the system SHALL display clear error messages without data corruption.
 
-### Requirement 8: Keyboard Input Handling and Hints
-- User Story: As a user, I want consistent keyboard controls and basic on-screen hints so that I can quickly learn and use the application.
-- Acceptance Criteria:
-  - WHEN the user presses any of the supported keys THEN the system SHALL accept both uppercase and lowercase variants for B, N, H, J, K, L, A.
-  - WHEN the user presses an unrecognized key THEN the system SHALL ignore it and MAY present a brief status message indicating the key is not bound.
-  - WHEN the application is in the calendar view THEN the system SHALL display a concise key legend (e.g., B/N: month, H/J/K/L: move, Enter: events, A: add) within the available space.
+### Requirement 7: Enhanced Event List Management
+- **User Story**: As a user, I want comprehensive event management capabilities within the event list view, including adding, editing, and deleting events with visual feedback and keyboard navigation.
+- **Acceptance Criteria**:
+    - WHEN viewing an event list THEN the system SHALL support arrow key navigation with visual highlighting of the selected event.
+    - WHEN the user presses 'A' in event list view THEN the system SHALL add a new event with inline input at the bottom of the list.
+    - WHEN the user presses 'D' in event list view THEN the system SHALL delete the currently selected event after confirmation.
+    - WHEN the user presses 'E' in event list view THEN the system SHALL edit the selected event with inline input showing current values.
+    - WHEN adding a new event from the list THEN the system SHALL automatically select the newly added event upon successful creation.
+    - WHEN events are displayed THEN the system SHALL show time in green and description in white (color terminals) with proper formatting.
+    - WHEN the list exceeds display capacity THEN the system SHALL show a "... and X more events" indicator.
 
-### Requirement 9: Visual and Terminal Compatibility
-- User Story: As a user, I want the calendar to be readable in a typical terminal so that I can use it on various systems.
-- Acceptance Criteria:
-  - WHEN rendered in a standard 80x24, monochrome terminal THEN the system SHALL keep the calendar and indicators legible using ASCII-friendly characters and spacing.
-  - WHEN color support is available THEN the system MAY use color to enhance readability; however, all information SHALL remain understandable without color.
+### Requirement 8: Application State Management and Exit Confirmation
+- **User Story**: As a user, I want confirmation before accidentally exiting the application and clear feedback about the current application mode so that I don't lose work due to unintended key presses.
+- **Acceptance Criteria**:
+    - WHEN the user attempts to quit the application THEN the system SHALL prompt "Exit ASCII Calendar? (Enter: confirm, Esc: cancel)".
+    - WHEN quitting from any application state THEN the system SHALL require confirmation before actually exiting.
+    - WHEN the user presses Esc from the main calendar view THEN the system SHALL prompt for exit confirmation.
+    - WHEN in specialized modes (search, event selection, etc.) THEN the system SHALL show appropriate key legends for the current mode.
+    - WHEN transitioning between states THEN the system SHALL provide clear visual feedback about the current mode and available actions.
 
-### Requirement 10: Date, Time, and Localization Assumptions
-- User Story: As a user, I want the calendar to respect my system’s date and time so that displayed information aligns with my expectations.
-- Acceptance Criteria:
-  - WHEN determining the current date and time THEN the system SHALL use the local system clock and time zone.
-  - WHEN displaying day-of-week headers THEN the system SHALL default to Sunday-first ordering unless locale information indicates otherwise.
-  - WHEN calculating month boundaries (including leap years) THEN the system SHALL use correct Gregorian calendar rules.
+### Requirement 9: Color Support with Accessibility Compatibility
+- **User Story**: As a user, I want enhanced visual appeal through color support while maintaining full functionality on monochrome terminals so that the application works well across different terminal environments.
+- **Acceptance Criteria**:
+    - WHEN the terminal supports color THEN the system SHALL use color themes for enhanced visual appeal (magenta headers, cyan day labels, green event indicators, yellow highlighting).
+    - WHEN the terminal is monochrome THEN the system SHALL fall back to formatting using bold, reverse video, and spacing without losing information.
+    - WHEN displaying month headers THEN the system SHALL use magenta bold text in color terminals or just bold in monochrome terminals.
+    - WHEN showing day-of-week headers THEN the system SHALL use cyan text in color terminals or normal text in monochrome terminals.
+    - WHEN indicating selected items THEN the system SHALL use yellow backgrounds in color terminals or reverse video in monochrome terminals.
+    - WHEN all visual indicators are rendered THEN the system SHALL ensure no information is lost when color is unavailable.
+
+### Requirement 10: Advanced Terminal Compatibility and Error Handling
+- **User Story**: As a user, I want the application to work reliably across different terminal environments with graceful error handling and informative messages so that I can use it consistently regardless of my system configuration.
+- **Acceptance Criteria**:
+    - WHEN the terminal size is smaller than 80x24 THEN the system SHALL display a clear error message and exit gracefully.
+    - WHEN terminal capabilities are detected THEN the system SHALL automatically adjust color usage and formatting options.
+    - WHEN file system errors occur THEN the system SHALL display descriptive error messages without terminating unexpectedly.
+    - WHEN JSON parsing fails THEN the system SHALL report the error and suggest corrective actions without data loss.
+    - WHEN configuration files are malformed THEN the system SHALL fall back to default settings and continue operation.
+    - WHEN migration from old format is needed THEN the system SHALL preserve the original file and create the new format safely.
+
+### Requirement 11: Keyboard Input Processing and User Interface Consistency
+- **User Story**: As a user, I want consistent keyboard controls across all application modes with clear feedback and comprehensive key legends so that I can efficiently navigate and operate the application.
+- **Acceptance Criteria**:
+    - WHEN in calendar mode THEN the system SHALL display the key legend: "B/N: month H/J/K/L: move Enter: events A: add D: delete E: edit C: current F: search Q: quit".
+    - WHEN in search mode THEN the system SHALL display: "↑↓: navigate results Enter: go to date Esc: back to calendar F: search".
+    - WHEN in event selection modes THEN the system SHALL display appropriate legends for the current operation (delete, edit, add).
+    - WHEN the user presses any supported key THEN the system SHALL accept both uppercase and lowercase variants.
+    - WHEN the user presses unsupported keys THEN the system SHALL ignore them without error messages or visual disturbance.
+    - WHEN providing input prompts THEN the system SHALL show clear instructions and formatting requirements.
+
+### Requirement 12: Data Persistence and Migration System
+- **User Story**: As a user, I want reliable data storage with automatic format migration and backup preservation so that my event data remains safe and accessible across application updates.
+- **Acceptance Criteria**:
+    - WHEN the application stores events THEN the system SHALL use structured JSON format with "events" array containing date, time, and description fields.
+    - WHEN loading events THEN the system SHALL parse dates in local timezone to ensure consistency with display and navigation.
+    - WHEN an old events.txt file is detected THEN the system SHALL automatically convert it to JSON format and preserve the original file.
+    - WHEN migration occurs THEN the system SHALL display "Successfully migrated X events from events.txt to events.json".
+    - WHEN saving events THEN the system SHALL write formatted JSON with proper indentation for human readability.
+    - WHEN concurrent file access issues occur THEN the system SHALL handle them gracefully without data corruption.
+
+## Technical Specifications
+
+### Compatibility Requirements
+- Terminal size minimum: 80 characters wide × 24 lines tall
+- Color support: Optional, with full functionality in monochrome mode
+- Platform support: Linux, macOS, Windows (with appropriate terminal)
+- Go version: 1.19 or later for building from source
+
+### Security Considerations
+- File permissions: Configuration directory created with 0755 permissions
+- Data privacy: All data stored locally, no network communication
+- Input validation: All user input validated before processing
+- Configuration safety: Malformed configs fall back to safe defaults
+
+## Conclusion
+This enhanced requirements document reflects the evolution of the ASCII Calendar application from a basic terminal calendar to a comprehensive event management system. The application now provides professional-grade functionality while maintaining the simplicity and efficiency of terminal-based operation, supporting both novice and advanced users across diverse terminal environments.
