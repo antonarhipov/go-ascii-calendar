@@ -141,10 +141,10 @@ func (app *Application) handleAction(action terminal.KeyAction) bool {
 func (app *Application) handleCalendarAction(action terminal.KeyAction) bool {
 	switch action {
 	case terminal.ActionQuit:
-		return true // Exit application
+		return app.confirmExit() // Exit application with confirmation
 
 	case terminal.ActionBack:
-		return true // Exit application when Esc is pressed on main screen
+		return app.confirmExit() // Exit application when Esc is pressed on main screen
 
 	case terminal.ActionMonthPrev:
 		app.navigation.NavigateMonthBackward()
@@ -208,7 +208,7 @@ func (app *Application) handleCalendarAction(action terminal.KeyAction) bool {
 func (app *Application) handleSearchAction(action terminal.KeyAction) bool {
 	switch action {
 	case terminal.ActionQuit:
-		return true // Exit application
+		return app.confirmExit() // Exit application with confirmation
 
 	case terminal.ActionBack:
 		// Exit search mode and return to calendar
@@ -240,7 +240,7 @@ func (app *Application) handleSearchAction(action terminal.KeyAction) bool {
 func (app *Application) handleCalendarEventSelectionAction(action terminal.KeyAction) bool {
 	switch action {
 	case terminal.ActionQuit:
-		return true // Exit application
+		return app.confirmExit() // Exit application with confirmation
 
 	case terminal.ActionBack:
 		// Exit event selection mode and return to calendar navigation
@@ -269,7 +269,7 @@ func (app *Application) handleCalendarEventSelectionAction(action terminal.KeyAc
 func (app *Application) handleCalendarEventAddAction(action terminal.KeyAction) bool {
 	switch action {
 	case terminal.ActionQuit:
-		return true // Exit application
+		return app.confirmExit() // Exit application with confirmation
 
 	case terminal.ActionBack:
 		// Exit event add mode and return to calendar navigation
@@ -292,7 +292,7 @@ func (app *Application) handleCalendarEventAddAction(action terminal.KeyAction) 
 func (app *Application) handleCalendarEventEditAction(action terminal.KeyAction) bool {
 	switch action {
 	case terminal.ActionQuit:
-		return true // Exit application
+		return app.confirmExit() // Exit application with confirmation
 
 	case terminal.ActionBack:
 		// Exit event edit mode and return to calendar navigation
@@ -321,7 +321,7 @@ func (app *Application) handleCalendarEventEditAction(action terminal.KeyAction)
 func (app *Application) handleEventListAction(action terminal.KeyAction) bool {
 	switch action {
 	case terminal.ActionQuit:
-		return true // Exit application
+		return app.confirmExit() // Exit application with confirmation
 
 	case terminal.ActionBack:
 		app.state = StateCalendar
@@ -350,7 +350,7 @@ func (app *Application) handleEventListAction(action terminal.KeyAction) bool {
 func (app *Application) handleAddEventAction(action terminal.KeyAction) bool {
 	switch action {
 	case terminal.ActionQuit:
-		return true // Exit application
+		return app.confirmExit() // Exit application with confirmation
 
 	case terminal.ActionBack:
 		app.state = StateCalendar
@@ -908,6 +908,11 @@ func (app *Application) confirmAction(message string) bool {
 	}
 
 	return false // Any other key (including Esc) cancels
+}
+
+// confirmExit prompts the user to confirm application exit
+func (app *Application) confirmExit() bool {
+	return app.confirmAction("Exit ASCII Calendar? (Enter: confirm, Esc: cancel)")
 }
 
 // selectEventFromList allows the user to select an event from a list
