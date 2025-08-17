@@ -345,6 +345,214 @@ func (ih *InputHandler) GetInlineTextInputWithDefault(x, y int, prompt string, m
 	}
 }
 
+// GetTimeInput handles time input with on-the-fly validation (HH:MM format)
+func (ih *InputHandler) GetTimeInput(prompt string, renderer *Renderer) (string, bool) {
+	var input strings.Builder
+
+	for {
+		// Update display with current input and format with colon if needed
+		displayInput := ih.formatTimeDisplay(input.String())
+		renderer.RenderInputPrompt(prompt, displayInput)
+
+		event := ih.terminal.PollEvent()
+
+		if event.Type != termbox.EventKey {
+			continue
+		}
+
+		switch event.Key {
+		case termbox.KeyEsc:
+			return "", false // User cancelled
+
+		case termbox.KeyEnter:
+			result := ih.formatTimeDisplay(input.String())
+			if len(result) == 5 { // Must be exactly HH:MM
+				return result, true
+			}
+			// Invalid length, continue waiting for input
+			continue
+
+		case termbox.KeyBackspace, termbox.KeyBackspace2:
+			if input.Len() > 0 {
+				// Remove last character
+				str := input.String()
+				input.Reset()
+				if len(str) > 0 {
+					input.WriteString(str[:len(str)-1])
+				}
+			}
+
+		default:
+			// Handle digit input with validation
+			if event.Ch >= '0' && event.Ch <= '9' {
+				if ih.isValidTimeDigit(input.String(), event.Ch) {
+					input.WriteRune(event.Ch)
+				}
+			}
+		}
+	}
+}
+
+// GetInlineTimeInput handles time input with inline rendering and on-the-fly validation
+func (ih *InputHandler) GetInlineTimeInput(x, y int, prompt string, renderer *Renderer) (string, bool) {
+	var input strings.Builder
+
+	for {
+		// Update display with current input and format with colon if needed
+		displayInput := ih.formatTimeDisplay(input.String())
+		renderer.RenderInlineInput(x, y, prompt, displayInput)
+
+		event := ih.terminal.PollEvent()
+
+		if event.Type != termbox.EventKey {
+			continue
+		}
+
+		switch event.Key {
+		case termbox.KeyEsc:
+			return "", false // User cancelled
+
+		case termbox.KeyEnter:
+			result := ih.formatTimeDisplay(input.String())
+			if len(result) == 5 { // Must be exactly HH:MM
+				return result, true
+			}
+			// Invalid length, continue waiting for input
+			continue
+
+		case termbox.KeyBackspace, termbox.KeyBackspace2:
+			if input.Len() > 0 {
+				// Remove last character
+				str := input.String()
+				input.Reset()
+				if len(str) > 0 {
+					input.WriteString(str[:len(str)-1])
+				}
+			}
+
+		default:
+			// Handle digit input with validation
+			if event.Ch >= '0' && event.Ch <= '9' {
+				if ih.isValidTimeDigit(input.String(), event.Ch) {
+					input.WriteRune(event.Ch)
+				}
+			}
+		}
+	}
+}
+
+// GetInlineTimeInputWithDefault handles time input with inline rendering, pre-filled default, and validation
+func (ih *InputHandler) GetInlineTimeInputWithDefault(x, y int, prompt string, defaultValue string, renderer *Renderer) (string, bool) {
+	var input strings.Builder
+
+	// Pre-fill with default value (strip colon for internal representation)
+	if len(defaultValue) == 5 && defaultValue[2] == ':' {
+		input.WriteString(defaultValue[:2] + defaultValue[3:])
+	} else {
+		input.WriteString(defaultValue)
+	}
+
+	for {
+		// Update display with current input and format with colon if needed
+		displayInput := ih.formatTimeDisplay(input.String())
+		renderer.RenderInlineInput(x, y, prompt, displayInput)
+
+		event := ih.terminal.PollEvent()
+
+		if event.Type != termbox.EventKey {
+			continue
+		}
+
+		switch event.Key {
+		case termbox.KeyEsc:
+			return "", false // User cancelled
+
+		case termbox.KeyEnter:
+			result := ih.formatTimeDisplay(input.String())
+			if len(result) == 5 { // Must be exactly HH:MM
+				return result, true
+			}
+			// Invalid length, continue waiting for input
+			continue
+
+		case termbox.KeyBackspace, termbox.KeyBackspace2:
+			if input.Len() > 0 {
+				// Remove last character
+				str := input.String()
+				input.Reset()
+				if len(str) > 0 {
+					input.WriteString(str[:len(str)-1])
+				}
+			}
+
+		default:
+			// Handle digit input with validation
+			if event.Ch >= '0' && event.Ch <= '9' {
+				if ih.isValidTimeDigit(input.String(), event.Ch) {
+					input.WriteRune(event.Ch)
+				}
+			}
+		}
+	}
+}
+
+// isValidTimeDigit validates if a digit can be entered at the current position
+func (ih *InputHandler) isValidTimeDigit(currentInput string, digit rune) bool {
+	inputLen := len(currentInput)
+
+	// Maximum 4 digits (HHMM without colon)
+	if inputLen >= 4 {
+		return false
+	}
+
+	switch inputLen {
+	case 0: // First hour digit
+		// Only allow 1 or 2 (no hour starts with 0, 3, etc.)
+		return digit == '1' || digit == '2'
+
+	case 1: // Second hour digit
+		firstDigit := rune(currentInput[0])
+		if firstDigit == '1' {
+			// 10-19 hours allowed
+			return digit >= '0' && digit <= '9'
+		} else if firstDigit == '2' {
+			// 20-23 hours allowed
+			return digit >= '0' && digit <= '3'
+		}
+		return false
+
+	case 2: // First minute digit
+		// Only allow 0-5 (no minute starts with 6, 7, 8, 9)
+		return digit >= '0' && digit <= '5'
+
+	case 3: // Second minute digit
+		// Any digit 0-9 allowed for second minute digit
+		return digit >= '0' && digit <= '9'
+
+	default:
+		return false
+	}
+}
+
+// formatTimeDisplay formats the internal time representation for display (adds colon)
+func (ih *InputHandler) formatTimeDisplay(input string) string {
+	inputLen := len(input)
+
+	if inputLen == 0 {
+		return ""
+	} else if inputLen == 1 {
+		return input + "_"
+	} else if inputLen == 2 {
+		return input + ":__"
+	} else if inputLen == 3 {
+		return input[:2] + ":" + input[2:] + "_"
+	} else if inputLen >= 4 {
+		return input[:2] + ":" + input[2:4]
+	}
+
+	return input
+}
+
 // IsValidKey checks if a character is a valid key for the application
 func (ih *InputHandler) IsValidKey(ch rune) bool {
 	validKeys := "bBnNhHjJkKlLaAqQ"

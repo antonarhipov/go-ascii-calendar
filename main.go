@@ -403,8 +403,8 @@ func (app *Application) renderCurrentView() error {
 func (app *Application) processAddEvent() {
 	selectedDate := app.navigation.GetCurrentSelection()
 
-	// Get time input
-	timeStr, ok := app.input.GetTextInputWithPrompt("Enter time (HH:MM):", 5, app.renderer)
+	// Get time input with validation
+	timeStr, ok := app.input.GetTimeInput("Enter time (HH:MM):", app.renderer)
 	if !ok {
 		return // User cancelled
 	}
@@ -488,10 +488,10 @@ func (app *Application) processEditEvent() {
 		}
 	}
 
-	// Get new time input (default to current time)
+	// Get new time input with validation (default to current time)
 	currentTime := eventToEdit.GetTimeString()
 	prompt := fmt.Sprintf("Enter new time (current: %s):", currentTime)
-	timeStr, ok := app.input.GetTextInputWithPrompt(prompt, 5, app.renderer)
+	timeStr, ok := app.input.GetTimeInput(prompt, app.renderer)
 	if !ok {
 		return // User cancelled
 	}
@@ -596,9 +596,9 @@ func (app *Application) processEditEventFromList() {
 	editEventY := startY + app.selectedEventIndex // Position of the selected event
 	eventsLeftX := 2                              // Use left margin like the event list
 
-	// Get new time input with current value as default using inline input
+	// Get new time input with current value as default using inline input with validation
 	currentTime := eventToEdit.GetTimeString()
-	timeStr, ok := app.input.GetInlineTextInputWithDefault(eventsLeftX, editEventY, "Time:", 5, currentTime, app.renderer)
+	timeStr, ok := app.input.GetInlineTimeInputWithDefault(eventsLeftX, editEventY, "Time:", currentTime, app.renderer)
 	if !ok {
 		return // User cancelled
 	}
@@ -643,8 +643,8 @@ func (app *Application) processAddEventFromEventsList() {
 	// Use left margin like the event list (X=2)
 	eventsLeftX := 2
 
-	// Get time input using inline input
-	timeStr, ok := app.input.GetInlineTextInput(eventsLeftX, addEventY, "Time:", 5, app.renderer)
+	// Get time input using inline input with validation
+	timeStr, ok := app.input.GetInlineTimeInput(eventsLeftX, addEventY, "Time:", app.renderer)
 	if !ok {
 		// User cancelled
 		return
@@ -702,8 +702,8 @@ func (app *Application) processAddEventFromCalendar() {
 	}
 	addEventY := eventsStartY + 1 + maxExistingEvents
 
-	// Get time input using inline input
-	timeStr, ok := app.input.GetInlineTextInput(eventsLeftX, addEventY, "Time:", 5, app.renderer)
+	// Get time input using inline input with validation
+	timeStr, ok := app.input.GetInlineTimeInput(eventsLeftX, addEventY, "Time:", app.renderer)
 	if !ok {
 		// User cancelled, return to calendar
 		app.state = StateCalendar
@@ -838,9 +838,9 @@ func (app *Application) processEditSelectedCalendarEvent() {
 	// Calculate Y position for the selected event
 	editEventY := eventsStartY + 1 + app.selectedEventIndex
 
-	// Get new time input with current value as default
+	// Get new time input with current value as default using validation
 	currentTime := eventToEdit.GetTimeString()
-	timeStr, ok := app.input.GetInlineTextInputWithDefault(eventsLeftX, editEventY, "Time:", 5, currentTime, app.renderer)
+	timeStr, ok := app.input.GetInlineTimeInputWithDefault(eventsLeftX, editEventY, "Time:", currentTime, app.renderer)
 	if !ok {
 		// User cancelled, return to calendar
 		app.state = StateCalendar
