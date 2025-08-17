@@ -166,3 +166,87 @@ func (m *Manager) GetEventsInDateRange(startDate, endDate time.Time) []models.Ev
 func (m *Manager) ReloadEvents() error {
 	return m.LoadEvents()
 }
+
+// DeleteEvent deletes an event from both storage and memory
+func (m *Manager) DeleteEvent(eventToDelete models.Event) error {
+	// Delete from storage first
+	if err := storage.DeleteEvent(eventToDelete); err != nil {
+		return fmt.Errorf("failed to delete event from storage: %v", err)
+	}
+
+	// Remove from in-memory collection
+	var updatedEvents []models.Event
+	found := false
+	for _, event := range m.events {
+		// Compare events by date, time, and description
+		if event.Date.Equal(eventToDelete.Date) &&
+			event.Time.Equal(eventToDelete.Time) &&
+			event.Description == eventToDelete.Description {
+			found = true
+			continue // Skip this event (delete it)
+		}
+		updatedEvents = append(updatedEvents, event)
+	}
+
+	if !found {
+		return fmt.Errorf("event not found in memory for deletion")
+	}
+
+	m.events = updatedEvents
+	return nil
+}
+
+// EditEvent replaces an existing event with a new one in both storage and memory
+func (m *Manager) EditEvent(oldEvent models.Event, date time.Time, timeStr, description string) error {
+	// Validate time string format
+	if !calendar.ValidateTimeString(timeStr) {
+		return fmt.Errorf("invalid time format '%s': expected HH:MM", timeStr)
+	}
+
+	// Validate description is not empty
+	if len(description) == 0 {
+		return fmt.Errorf("event description cannot be empty")
+	}
+
+	// Parse time
+	eventTime, err := calendar.ParseTime(timeStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse time '%s': %v", timeStr, err)
+	}
+
+	// Create new event
+	newEvent := models.Event{
+		Date:        date,
+		Time:        eventTime,
+		Description: description,
+	}
+
+	// Validate the complete new event
+	if err := storage.ValidateEvent(newEvent); err != nil {
+		return fmt.Errorf("new event validation failed: %v", err)
+	}
+
+	// Update in storage first
+	if err := storage.UpdateEvent(oldEvent, newEvent); err != nil {
+		return fmt.Errorf("failed to update event in storage: %v", err)
+	}
+
+	// Update in-memory collection
+	found := false
+	for i, event := range m.events {
+		// Compare events by date, time, and description
+		if event.Date.Equal(oldEvent.Date) &&
+			event.Time.Equal(oldEvent.Time) &&
+			event.Description == oldEvent.Description {
+			m.events[i] = newEvent
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("event not found in memory for update")
+	}
+
+	return nil
+}

@@ -169,3 +169,96 @@ func CreateEventFileAtPath(filename string) error {
 
 	return nil
 }
+
+// DeleteEvent removes an event from the storage file
+func DeleteEvent(eventToDelete models.Event) error {
+	return DeleteEventFromFile(eventToDelete, EventsFileName)
+}
+
+// DeleteEventFromFile removes an event from a specified file (for testing)
+func DeleteEventFromFile(eventToDelete models.Event, filename string) error {
+	// Load all events
+	events, err := LoadEventsFromFile(filename)
+	if err != nil {
+		return fmt.Errorf("failed to load events for deletion: %v", err)
+	}
+
+	// Find and remove the matching event
+	var updatedEvents []models.Event
+	found := false
+	for _, event := range events {
+		// Compare events by date, time, and description
+		if event.Date.Equal(eventToDelete.Date) &&
+			event.Time.Equal(eventToDelete.Time) &&
+			event.Description == eventToDelete.Description {
+			found = true
+			continue // Skip this event (delete it)
+		}
+		updatedEvents = append(updatedEvents, event)
+	}
+
+	if !found {
+		return fmt.Errorf("event not found for deletion")
+	}
+
+	// Rewrite the entire file with the updated events
+	return SaveAllEventsToFile(updatedEvents, filename)
+}
+
+// UpdateEvent replaces an existing event with a new one
+func UpdateEvent(oldEvent, newEvent models.Event) error {
+	return UpdateEventInFile(oldEvent, newEvent, EventsFileName)
+}
+
+// UpdateEventInFile replaces an existing event with a new one in a specified file (for testing)
+func UpdateEventInFile(oldEvent, newEvent models.Event, filename string) error {
+	// Load all events
+	events, err := LoadEventsFromFile(filename)
+	if err != nil {
+		return fmt.Errorf("failed to load events for update: %v", err)
+	}
+
+	// Find and replace the matching event
+	found := false
+	for i, event := range events {
+		// Compare events by date, time, and description
+		if event.Date.Equal(oldEvent.Date) &&
+			event.Time.Equal(oldEvent.Time) &&
+			event.Description == oldEvent.Description {
+			events[i] = newEvent
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("event not found for update")
+	}
+
+	// Validate the new event
+	if err := ValidateEvent(newEvent); err != nil {
+		return fmt.Errorf("new event validation failed: %v", err)
+	}
+
+	// Rewrite the entire file with the updated events
+	return SaveAllEventsToFile(events, filename)
+}
+
+// SaveAllEventsToFile writes all events to a file, replacing the existing content
+func SaveAllEventsToFile(events []models.Event, filename string) error {
+	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open events file for writing: %v", err)
+	}
+	defer file.Close()
+
+	for _, event := range events {
+		eventLine := event.String()
+		_, err = file.WriteString(eventLine + "\n")
+		if err != nil {
+			return fmt.Errorf("failed to write event to file: %v", err)
+		}
+	}
+
+	return nil
+}

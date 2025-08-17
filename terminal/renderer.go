@@ -285,12 +285,12 @@ func (r *Renderer) renderKeyLegend() {
 
 	fg, bg := r.terminal.GetDefaultColors()
 
-	legend := "B/N: month  H/J/K/L: move  Enter: events  A: add  C: current  Q: quit"
+	legend := "B/N: month  H/J/K/L: move  Enter: events  A: add  D: delete  E: edit  C: current  Q: quit"
 	r.terminal.PrintCentered(legendY, legend, fg, bg)
 }
 
-// RenderEventList renders the event list for a selected date
-func (r *Renderer) RenderEventList(date time.Time, events []models.Event) error {
+// RenderEventList renders the event list for a selected date with selection highlighting
+func (r *Renderer) RenderEventList(date time.Time, events []models.Event, selectedIndex int) error {
 	r.terminal.Clear()
 
 	width, height := r.terminal.GetSize()
@@ -345,25 +345,54 @@ func (r *Renderer) RenderEventList(date time.Time, events []models.Event) error 
 				break
 			}
 
+			// Check if this is the selected event
+			isSelected := i == selectedIndex
+
 			// Color the time and description differently
 			timeStr := event.GetTimeString()
 			description := event.Description
 
-			var timeFg, descFg termbox.Attribute
-			if r.terminal.IsColorSupported() {
-				timeFg = termbox.ColorGreen | termbox.AttrBold // Green for time
-				descFg = termbox.ColorWhite                    // White for description
+			var timeFg, descFg, eventBg termbox.Attribute
+			if isSelected {
+				// Selected event: use highlighting
+				if r.terminal.IsColorSupported() {
+					timeFg = termbox.ColorBlack | termbox.AttrBold
+					descFg = termbox.ColorBlack
+					eventBg = termbox.ColorYellow // Yellow background for selection
+				} else {
+					timeFg = termbox.ColorDefault | termbox.AttrReverse | termbox.AttrBold
+					descFg = termbox.ColorDefault | termbox.AttrReverse
+					eventBg = termbox.ColorDefault
+				}
 			} else {
-				timeFg = termbox.AttrBold
-				descFg = fg
+				// Normal event colors
+				eventBg = bg
+				if r.terminal.IsColorSupported() {
+					timeFg = termbox.ColorGreen | termbox.AttrBold // Green for time
+					descFg = termbox.ColorWhite                    // White for description
+				} else {
+					timeFg = termbox.AttrBold
+					descFg = fg
+				}
 			}
 
+			// Add selection indicator
+			var prefix string
+			if isSelected {
+				prefix = "> "
+			} else {
+				prefix = "  "
+			}
+
+			// Print prefix (selection indicator)
+			r.terminal.Print(0, startY+i, prefix, timeFg, eventBg)
+
 			// Print time
-			r.terminal.Print(2, startY+i, timeStr, timeFg, bg)
+			r.terminal.Print(2, startY+i, timeStr, timeFg, eventBg)
 
 			// Print separator
 			separator := " - "
-			r.terminal.Print(2+len(timeStr), startY+i, separator, fg, bg)
+			r.terminal.Print(2+len(timeStr), startY+i, separator, timeFg, eventBg)
 
 			// Print description (truncate if too long)
 			descriptionText := description
@@ -371,7 +400,15 @@ func (r *Renderer) RenderEventList(date time.Time, events []models.Event) error 
 			if len(descriptionText) > maxDescWidth {
 				descriptionText = descriptionText[:maxDescWidth-3] + "..."
 			}
-			r.terminal.Print(2+len(timeStr)+len(separator), startY+i, descriptionText, descFg, bg)
+			r.terminal.Print(2+len(timeStr)+len(separator), startY+i, descriptionText, descFg, eventBg)
+
+			// Fill the rest of the line with the background color for selected events
+			if isSelected {
+				lineLength := 2 + len(timeStr) + len(separator) + len(descriptionText)
+				for x := lineLength; x < width; x++ {
+					r.terminal.SetCell(x, startY+i, ' ', timeFg, eventBg)
+				}
+			}
 		}
 	}
 
@@ -383,7 +420,7 @@ func (r *Renderer) RenderEventList(date time.Time, events []models.Event) error 
 	} else {
 		instrFg = fg
 	}
-	r.terminal.PrintCentered(instrY, "A: add event  Esc: back to calendar", instrFg, bg)
+	r.terminal.PrintCentered(instrY, "J/K: navigate  A: add event  D: delete event  E: edit event  Esc: back to calendar", instrFg, bg)
 
 	return r.terminal.Flush()
 }

@@ -32,6 +32,8 @@ const (
 	ActionMoveDown
 	ActionShowEvents
 	ActionAddEvent
+	ActionDeleteEvent
+	ActionEditEvent
 	ActionBack
 	ActionResetCurrent
 )
@@ -88,6 +90,10 @@ func (ih *InputHandler) ProcessKeyEvent(event termbox.Event) KeyAction {
 		return ActionMoveDown
 	case 'a':
 		return ActionAddEvent
+	case 'd':
+		return ActionDeleteEvent
+	case 'e':
+		return ActionEditEvent
 	case 'c':
 		return ActionResetCurrent
 	default:
@@ -117,6 +123,10 @@ func (ih *InputHandler) GetKeyDescription(action KeyAction) string {
 		return "Show events for selected date"
 	case ActionAddEvent:
 		return "Add new event"
+	case ActionDeleteEvent:
+		return "Delete event"
+	case ActionEditEvent:
+		return "Edit event"
 	case ActionBack:
 		return "Back to previous view"
 	case ActionResetCurrent:
