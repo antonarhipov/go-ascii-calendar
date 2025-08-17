@@ -1,0 +1,104 @@
+{
+  "_comment": "ASCII Calendar Configuration Example",
+  "_description": "This file demonstrates all available configuration options for the ASCII Calendar application",
+  
+  "events_file_path": "~/.ascii-calendar/events.json",
+  "_events_file_path_description": "Path to the JSON file where events are stored. Can be absolute or relative path. Supports ~ for home directory.",
+  
+  "week_start_day": 0,
+  "_week_start_day_description": "First day of the week in calendar display. 0 = Sunday first, 1 = Monday first",
+  "_week_start_day_options": {
+    "sunday_first": 0,
+    "monday_first": 1
+  },
+  
+  "ui_theme": {
+    "_theme_description": "Complete color theme configuration for all UI elements. Colors can be specified as color names with optional attributes.",
+    "_color_syntax": "Colors: black, red, green, yellow, blue, magenta, cyan, white, bright_* variants, default",
+    "_color_attributes": "Attributes: bold, underline, reverse (combine with | e.g., 'red|bold')",
+    
+    "month_header_fg": "magenta|bold",
+    "month_header_bg": "default",
+    "_month_header_description": "Colors for month/year headers (e.g., 'August 2025')",
+    
+    "day_header_fg": "cyan",
+    "day_header_bg": "default", 
+    "_day_header_description": "Colors for day-of-week headers (e.g., 'Su Mo Tu We Th Fr Sa')",
+    
+    "regular_day_fg": "default",
+    "regular_day_bg": "default",
+    "_regular_day_description": "Colors for regular calendar day numbers",
+    
+    "today_fg": "yellow|bold",
+    "today_bg": "default",
+    "_today_description": "Colors for today's date highlighting",
+    
+    "selected_fg": "white|bold", 
+    "selected_bg": "blue",
+    "_selected_description": "Colors for currently selected date",
+    
+    "selected_today_fg": "white|bold",
+    "selected_today_bg": "cyan",
+    "_selected_today_description": "Colors when selected date is also today",
+    
+    "event_day_fg": "green",
+    "event_day_bg": "default",
+    "_event_day_description": "Colors for days that have events",
+    
+    "event_header_fg": "yellow|bold",
+    "event_header_bg": "default",
+    "_event_header_description": "Colors for event list section headers",
+    
+    "event_text_fg": "white",
+    "event_text_bg": "default",
+    "_event_text_description": "Colors for event list item text",
+    
+    "selected_event_fg": "black|bold",
+    "selected_event_bg": "yellow", 
+    "_selected_event_description": "Colors for selected event in event lists",
+    
+    "no_events_fg": "white",
+    "no_events_bg": "default",
+    "_no_events_description": "Colors for 'No events' messages",
+    
+    "more_events_fg": "magenta",
+    "more_events_bg": "default",
+    "_more_events_description": "Colors for '... and X more events' indicators",
+    
+    "error_fg": "red",
+    "error_bg": "default",
+    "_error_description": "Colors for error messages",
+    
+    "success_fg": "green", 
+    "success_bg": "default",
+    "_success_description": "Colors for success messages",
+    
+    "input_fg": "black|bold",
+    "input_bg": "yellow",
+    "_input_description": "Colors for input prompts and fields",
+    
+    "search_result_fg": "white",
+    "search_result_bg": "default",
+    "_search_result_description": "Colors for search result items",
+    
+    "instructions_fg": "cyan",
+    "instructions_bg": "default",
+    "_instructions_description": "Colors for key legends and instruction text"
+  },
+  
+  "_predefined_themes": {
+    "_description": "The application includes three predefined themes that can be loaded programmatically",
+    "default": "Standard theme with moderate colors suitable for most terminals",
+    "dark": "High-contrast theme optimized for dark terminal backgrounds", 
+    "light": "Theme optimized for light terminal backgrounds with darker text"
+  },
+  
+  "_usage_notes": [
+    "Remove all lines starting with '_' - they are comments for this example",
+    "The configuration file is automatically created at ~/.ascii-calendar/configuration.json",
+    "Command line options: -c <config-file> -f <events-file>",
+    "If configuration file doesn't exist, defaults are used",
+    "Colors automatically fall back to monochrome attributes on unsupported terminals",
+    "Invalid colors fall back to defaults with error logging"
+  ]
+}

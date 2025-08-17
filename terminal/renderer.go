@@ -4,28 +4,53 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nsf/termbox-go"
 	"go-ascii-calendar/calendar"
+	"go-ascii-calendar/config"
 	"go-ascii-calendar/events"
 	"go-ascii-calendar/models"
+
+	"github.com/nsf/termbox-go"
 )
 
 // Renderer handles calendar rendering operations
 type Renderer struct {
 	terminal     *Terminal
 	eventManager *events.Manager
+	config       *config.Config
 	monthWidth   int // Width of each month display
 	monthSpacing int // Spacing between months
 }
 
 // NewRenderer creates a new calendar renderer
-func NewRenderer(terminal *Terminal, eventManager *events.Manager) *Renderer {
+func NewRenderer(terminal *Terminal, eventManager *events.Manager, cfg *config.Config) *Renderer {
 	return &Renderer{
 		terminal:     terminal,
 		eventManager: eventManager,
+		config:       cfg,
 		monthWidth:   24, // Width for each month (includes padding)
 		monthSpacing: 2,  // Space between months
 	}
+}
+
+// getThemeColor safely parses a theme color with fallback to default
+func (r *Renderer) getThemeColor(colorStr string, fallback termbox.Attribute) termbox.Attribute {
+	if r.config == nil {
+		return fallback
+	}
+
+	color, err := config.ParseColor(colorStr)
+	if err != nil {
+		return fallback
+	}
+
+	return color
+}
+
+// getThemeColors returns foreground and background colors from theme strings
+func (r *Renderer) getThemeColors(fgStr, bgStr string, defaultFg, defaultBg termbox.Attribute) (termbox.Attribute, termbox.Attribute) {
+	fg := r.getThemeColor(fgStr, defaultFg)
+	bg := r.getThemeColor(bgStr, defaultBg)
+	return fg, bg
 }
 
 // RenderCalendar renders the three-month calendar view
@@ -196,30 +221,42 @@ func (r *Renderer) renderMonth(month time.Time, x, y int, selection *models.Sele
 	monthHeader := fmt.Sprintf("%s %d", calendar.GetMonthName(month), month.Year())
 	headerX := x + (r.monthWidth-len(monthHeader))/2
 
-	var headerFg termbox.Attribute
+	var headerFg, headerBg termbox.Attribute
 	if r.terminal.IsColorSupported() {
-		// Use magenta for month headers in color terminals
-		headerFg = termbox.ColorMagenta | termbox.AttrBold
+		// Use theme colors for month headers in color terminals
+		headerFg, headerBg = r.getThemeColors(
+			r.config.UITheme.MonthHeaderFg,
+			r.config.UITheme.MonthHeaderBg,
+			termbox.ColorMagenta|termbox.AttrBold,
+			termbox.ColorDefault,
+		)
 	} else {
 		headerFg = termbox.AttrBold
+		headerBg = termbox.ColorDefault
 	}
-	r.terminal.Print(headerX, y, monthHeader, headerFg, bg)
+	r.terminal.Print(headerX, y, monthHeader, headerFg, headerBg)
 
 	// Render day-of-week headers with color
-	dayHeaders := calendar.GetDayOfWeekHeaders()
+	dayHeaders := calendar.GetDayOfWeekHeaders(int(r.config.WeekStartDay))
 	headerY := y + 2
 
-	var dayHeaderFg termbox.Attribute
+	var dayHeaderFg, dayHeaderBg termbox.Attribute
 	if r.terminal.IsColorSupported() {
-		// Use cyan for day-of-week headers in color terminals
-		dayHeaderFg = termbox.ColorCyan
+		// Use theme colors for day-of-week headers in color terminals
+		dayHeaderFg, dayHeaderBg = r.getThemeColors(
+			r.config.UITheme.DayHeaderFg,
+			r.config.UITheme.DayHeaderBg,
+			termbox.ColorCyan,
+			termbox.ColorDefault,
+		)
 	} else {
 		dayHeaderFg = fg
+		dayHeaderBg = bg
 	}
 
 	for i, header := range dayHeaders {
 		headerX := x + i*3 + 1
-		r.terminal.Print(headerX, headerY, header, dayHeaderFg, bg)
+		r.terminal.Print(headerX, headerY, header, dayHeaderFg, dayHeaderBg)
 	}
 
 	// Render separator line
@@ -229,7 +266,7 @@ func (r *Renderer) renderMonth(month time.Time, x, y int, selection *models.Sele
 	}
 
 	// Get calendar weeks for this month
-	weeks := calendar.GetCalendarWeeks(month)
+	weeks := calendar.GetCalendarWeeks(month, int(r.config.WeekStartDay))
 
 	// Render day grid
 	startY := separatorY + 1
@@ -266,29 +303,54 @@ func (r *Renderer) getDayAttributes(date time.Time, selection *models.Selection)
 	isSelected := calendar.IsSameDate(date, selection.SelectedDate)
 	hasEvents := r.eventManager.HasEventsForDate(date)
 
-	// Default colors
-	fg = termbox.ColorDefault
-	bg = termbox.ColorDefault
+	// Default colors using theme
+	if r.terminal.IsColorSupported() {
+		fg, bg = r.getThemeColors(
+			r.config.UITheme.RegularDayFg,
+			r.config.UITheme.RegularDayBg,
+			termbox.ColorDefault,
+			termbox.ColorDefault,
+		)
+	} else {
+		fg = termbox.ColorDefault
+		bg = termbox.ColorDefault
+	}
 
 	// Apply color themes based on state (with fallback for monochrome terminals)
 	if r.terminal.IsColorSupported() {
-		// Color terminal - use color themes
+		// Color terminal - use configurable theme colors
 		if isSelected && isToday {
-			// Selected + Today: bright cyan background with white text
-			fg = termbox.ColorWhite | termbox.AttrBold
-			bg = termbox.ColorCyan
+			// Selected + Today: use theme colors
+			fg, bg = r.getThemeColors(
+				r.config.UITheme.SelectedTodayFg,
+				r.config.UITheme.SelectedTodayBg,
+				termbox.ColorWhite|termbox.AttrBold,
+				termbox.ColorCyan,
+			)
 		} else if isSelected {
-			// Selected: blue background with white text
-			fg = termbox.ColorWhite | termbox.AttrBold
-			bg = termbox.ColorBlue
+			// Selected: use theme colors
+			fg, bg = r.getThemeColors(
+				r.config.UITheme.SelectedFg,
+				r.config.UITheme.SelectedBg,
+				termbox.ColorWhite|termbox.AttrBold,
+				termbox.ColorBlue,
+			)
 		} else if isToday {
-			// Today: bright yellow text
-			fg = termbox.ColorYellow | termbox.AttrBold
-			bg = termbox.ColorDefault
+			// Today: use theme colors
+			fg, bg = r.getThemeColors(
+				r.config.UITheme.TodayFg,
+				r.config.UITheme.TodayBg,
+				termbox.ColorYellow|termbox.AttrBold,
+				termbox.ColorDefault,
+			)
 		} else if hasEvents {
-			// Days with events: green text
-			fg = termbox.ColorGreen
-			bg = termbox.ColorDefault
+			// Days with events: use theme colors
+			fg, bg = r.getThemeColors(
+				r.config.UITheme.EventDayFg,
+				r.config.UITheme.EventDayBg,
+				termbox.ColorGreen,
+				termbox.ColorDefault,
+			)
 		}
 	} else {
 		// Monochrome terminal - use attribute-based styling
@@ -334,24 +396,36 @@ func (r *Renderer) renderSelectedDateEvents(selectedDate time.Time) {
 	dateStr := calendar.FormatDate(selectedDate)
 	headerText := fmt.Sprintf("Events for %s:", dateStr)
 
-	var headerFg termbox.Attribute
+	var headerFg, headerBg termbox.Attribute
 	if r.terminal.IsColorSupported() {
-		headerFg = termbox.ColorYellow | termbox.AttrBold
+		headerFg, headerBg = r.getThemeColors(
+			r.config.UITheme.EventHeaderFg,
+			r.config.UITheme.EventHeaderBg,
+			termbox.ColorYellow|termbox.AttrBold,
+			termbox.ColorDefault,
+		)
 	} else {
 		headerFg = termbox.AttrBold
+		headerBg = bg
 	}
 
-	r.terminal.Print(eventsLeftX, eventsStartY, headerText, headerFg, bg)
+	r.terminal.Print(eventsLeftX, eventsStartY, headerText, headerFg, headerBg)
 
 	// Render events or "no events" message
 	if len(events) == 0 {
-		var noEventsFg termbox.Attribute
+		var noEventsFg, noEventsBg termbox.Attribute
 		if r.terminal.IsColorSupported() {
-			noEventsFg = termbox.ColorWhite
+			noEventsFg, noEventsBg = r.getThemeColors(
+				r.config.UITheme.NoEventsFg,
+				r.config.UITheme.NoEventsBg,
+				termbox.ColorWhite,
+				termbox.ColorDefault,
+			)
 		} else {
 			noEventsFg = fg
+			noEventsBg = bg
 		}
-		r.terminal.Print(eventsLeftX, eventsStartY+1, "No events scheduled", noEventsFg, bg)
+		r.terminal.Print(eventsLeftX, eventsStartY+1, "No events scheduled", noEventsFg, noEventsBg)
 	} else {
 		// Show up to 10 events per date
 		maxEvents := 10
@@ -364,11 +438,17 @@ func (r *Renderer) renderSelectedDateEvents(selectedDate time.Time) {
 			timeStr := event.GetTimeString()
 			description := event.Description
 
-			var eventFg termbox.Attribute
+			var eventFg, eventBg termbox.Attribute
 			if r.terminal.IsColorSupported() {
-				eventFg = termbox.ColorWhite
+				eventFg, eventBg = r.getThemeColors(
+					r.config.UITheme.EventTextFg,
+					r.config.UITheme.EventTextBg,
+					termbox.ColorWhite,
+					termbox.ColorDefault,
+				)
 			} else {
 				eventFg = fg
+				eventBg = bg
 			}
 
 			// Render event as single line
@@ -381,19 +461,25 @@ func (r *Renderer) renderSelectedDateEvents(selectedDate time.Time) {
 				eventText = eventText[:maxEventWidth-3] + "..."
 			}
 
-			r.terminal.Print(eventsLeftX, eventY, eventText, eventFg, bg)
+			r.terminal.Print(eventsLeftX, eventY, eventText, eventFg, eventBg)
 		}
 
 		// Show "and X more" if there are additional events
 		if len(events) > maxEvents {
 			moreText := fmt.Sprintf("... and %d more events", len(events)-maxEvents)
-			var moreFg termbox.Attribute
+			var moreFg, moreBg termbox.Attribute
 			if r.terminal.IsColorSupported() {
-				moreFg = termbox.ColorMagenta
+				moreFg, moreBg = r.getThemeColors(
+					r.config.UITheme.MoreEventsFg,
+					r.config.UITheme.MoreEventsBg,
+					termbox.ColorMagenta,
+					termbox.ColorDefault,
+				)
 			} else {
 				moreFg = fg
+				moreBg = bg
 			}
-			r.terminal.Print(eventsLeftX, eventsStartY+1+maxEvents, moreText, moreFg, bg)
+			r.terminal.Print(eventsLeftX, eventsStartY+1+maxEvents, moreText, moreFg, moreBg)
 		}
 	}
 }

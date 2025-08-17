@@ -57,9 +57,47 @@ Launch the application from your terminal:
 
 The application will display three calendar months side-by-side, with today's date highlighted and any existing events indicated.
 
+### Configuration
+
+ASCII Calendar supports extensive customization through a JSON configuration file. The application automatically creates default configuration at `~/.ascii-calendar/configuration.json` on first run.
+
+#### Quick Configuration Examples
+
+**Change week start day to Monday:**
+```json
+{
+  "week_start_day": 1
+}
+```
+
+**Use dark theme colors:**
+```json
+{
+  "ui_theme": {
+    "regular_day_fg": "white",
+    "today_fg": "bright_yellow|bold",
+    "selected_bg": "bright_blue",
+    "event_day_fg": "bright_green"
+  }
+}
+```
+
+#### Configuration Options
+
+- **Events file location**: Customize where events are stored
+- **Week start day**: Choose Sunday-first (0) or Monday-first (1) calendar layout  
+- **Color themes**: Complete customization of all UI colors and text attributes
+- **Terminal compatibility**: Automatic fallback to monochrome on limited terminals
+
+#### Available Files
+
+- **Detailed Guide**: See `docs/configuration.md` for complete configuration documentation
+- **Full Example**: See `config-example.json` for annotated configuration with all options
+- **Clean Example**: See `configuration-clean-example.json` for a ready-to-use complete configuration
+
 ### Command Line Options
 
-The application supports several command line options for configuration:
+The application supports command line options that override configuration file settings:
 
 ```bash
 # Use default configuration
@@ -76,7 +114,7 @@ The application supports several command line options for configuration:
 ```
 
 **Available Options:**
-- `-f <path>` - Path to events file (defaults to `~/.ascii-calendar/events.json`)
+- `-f <path>` - Path to events file (overrides configuration file setting)
 - `-c <path>` - Path to configuration file (defaults to `~/.ascii-calendar/configuration.json`)
 - `-h` - Show help message with available options
 

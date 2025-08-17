@@ -90,8 +90,13 @@ func ValidateTimeString(timeStr string) bool {
 	return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59
 }
 
-// GetDayOfWeekHeaders returns the day-of-week headers (Sunday first)
-func GetDayOfWeekHeaders() []string {
+// GetDayOfWeekHeaders returns the day-of-week headers
+// weekStartDay: 0 = Sunday first, 1 = Monday first
+func GetDayOfWeekHeaders(weekStartDay int) []string {
+	if weekStartDay == 1 { // Monday first
+		return []string{"Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"}
+	}
+	// Default: Sunday first
 	return []string{"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"}
 }
 
@@ -114,10 +119,17 @@ func NormalizeDate(date time.Time) time.Time {
 
 // GetCalendarWeeks returns the weeks needed to display a month's calendar
 // Each week is represented as an array of day numbers (0 for empty cells)
-func GetCalendarWeeks(month time.Time) [][]int {
+// weekStartDay: 0 = Sunday first, 1 = Monday first
+func GetCalendarWeeks(month time.Time, weekStartDay int) [][]int {
 	firstDay := GetFirstDayOfMonth(month)
 	daysInMonth := GetDaysInMonth(month)
 	startWeekday := int(firstDay.Weekday()) // 0=Sunday, 1=Monday, etc.
+
+	// Adjust for Monday-first layout
+	if weekStartDay == 1 {
+		// Shift so Monday=0, Tuesday=1, ..., Sunday=6
+		startWeekday = (startWeekday + 6) % 7
+	}
 
 	weeks := [][]int{}
 	currentWeek := make([]int, 7)

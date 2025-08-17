@@ -54,7 +54,7 @@ func NewApplication(cfg *config.Config) *Application {
 	return &Application{
 		config:     cfg,
 		terminal:   term,
-		renderer:   terminal.NewRenderer(term, eventManager),
+		renderer:   terminal.NewRenderer(term, eventManager, cfg),
 		input:      terminal.NewInputHandler(term),
 		navigation: terminal.NewNavigationController(cal, sel),
 		events:     eventManager,

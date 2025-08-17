@@ -268,47 +268,100 @@ func TestIsSameDate(t *testing.T) {
 func TestGetCalendarWeeks(t *testing.T) {
 	// Test August 2025 (starts on Friday, 5th weekday, has 31 days)
 	aug2025 := time.Date(2025, time.August, 1, 0, 0, 0, 0, time.UTC)
-	weeks := GetCalendarWeeks(aug2025)
 
-	// August 2025 should have 6 weeks (starts on Friday, so first week has 2 days)
-	if len(weeks) != 6 {
-		t.Errorf("GetCalendarWeeks(Aug 2025) returned %d weeks, want 6", len(weeks))
+	tests := []struct {
+		name             string
+		weekStartDay     int
+		expectedWeeks    int
+		expectedFirstRow []int
+		description      string
+	}{
+		{
+			name:             "Sunday first",
+			weekStartDay:     0,
+			expectedWeeks:    6,
+			expectedFirstRow: []int{0, 0, 0, 0, 0, 1, 2}, // August 1st is Friday (index 5)
+			description:      "August 2025 starts on Friday with Sunday-first layout",
+		},
+		{
+			name:             "Monday first",
+			weekStartDay:     1,
+			expectedWeeks:    5,
+			expectedFirstRow: []int{0, 0, 0, 0, 1, 2, 3}, // August 1st is Friday (index 4 in Monday-first)
+			description:      "August 2025 starts on Friday with Monday-first layout",
+		},
 	}
 
-	// First week should have 0,0,0,0,0,1,2
-	firstWeek := weeks[0]
-	expected := []int{0, 0, 0, 0, 0, 1, 2}
-	for i, day := range firstWeek {
-		if day != expected[i] {
-			t.Errorf("First week day %d = %d, want %d", i, day, expected[i])
-		}
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			weeks := GetCalendarWeeks(aug2025, tt.weekStartDay)
 
-	// Last week should end with 31
-	lastWeek := weeks[len(weeks)-1]
-	found31 := false
-	for _, day := range lastWeek {
-		if day == 31 {
-			found31 = true
-			break
-		}
-	}
-	if !found31 {
-		t.Error("Last week should contain day 31")
+			// Check number of weeks
+			if len(weeks) != tt.expectedWeeks {
+				t.Errorf("GetCalendarWeeks(Aug 2025, %d) returned %d weeks, want %d",
+					tt.weekStartDay, len(weeks), tt.expectedWeeks)
+			}
+
+			// Check first week layout
+			if len(weeks) > 0 {
+				firstWeek := weeks[0]
+				for i, day := range firstWeek {
+					if day != tt.expectedFirstRow[i] {
+						t.Errorf("First week day %d = %d, want %d (%s)",
+							i, day, tt.expectedFirstRow[i], tt.description)
+					}
+				}
+			}
+
+			// Last week should contain day 31
+			if len(weeks) > 0 {
+				lastWeek := weeks[len(weeks)-1]
+				found31 := false
+				for _, day := range lastWeek {
+					if day == 31 {
+						found31 = true
+						break
+					}
+				}
+				if !found31 {
+					t.Errorf("Last week should contain day 31 for %s", tt.description)
+				}
+			}
+		})
 	}
 }
 
 func TestGetDayOfWeekHeaders(t *testing.T) {
-	headers := GetDayOfWeekHeaders()
-	expected := []string{"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"}
-
-	if len(headers) != 7 {
-		t.Errorf("GetDayOfWeekHeaders() returned %d headers, want 7", len(headers))
+	tests := []struct {
+		name         string
+		weekStartDay int
+		expected     []string
+	}{
+		{
+			name:         "Sunday first",
+			weekStartDay: 0,
+			expected:     []string{"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"},
+		},
+		{
+			name:         "Monday first",
+			weekStartDay: 1,
+			expected:     []string{"Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"},
+		},
 	}
 
-	for i, header := range headers {
-		if header != expected[i] {
-			t.Errorf("Header %d = %s, want %s", i, header, expected[i])
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			headers := GetDayOfWeekHeaders(tt.weekStartDay)
+
+			if len(headers) != 7 {
+				t.Errorf("GetDayOfWeekHeaders(%d) returned %d headers, want 7", tt.weekStartDay, len(headers))
+			}
+
+			for i, header := range headers {
+				if header != tt.expected[i] {
+					t.Errorf("Header %d = %s, want %s", i, header, tt.expected[i])
+				}
+			}
+		})
 	}
 }

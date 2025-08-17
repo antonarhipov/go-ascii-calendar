@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"go-ascii-calendar/config"
 	"go-ascii-calendar/events"
 	"go-ascii-calendar/models"
 )
@@ -11,8 +12,9 @@ import (
 func TestNewRenderer(t *testing.T) {
 	terminal := NewTerminal()
 	eventManager := events.NewManager()
+	cfg := config.DefaultConfig()
 
-	renderer := NewRenderer(terminal, eventManager)
+	renderer := NewRenderer(terminal, eventManager, cfg)
 
 	if renderer == nil {
 		t.Fatal("NewRenderer() returned nil")
@@ -30,7 +32,7 @@ func TestNewRenderer(t *testing.T) {
 func TestRenderer_GetDayAttributes(t *testing.T) {
 	terminal := NewTerminal()
 	eventManager := events.NewManager()
-	renderer := NewRenderer(terminal, eventManager)
+	renderer := NewRenderer(terminal, eventManager, config.DefaultConfig())
 
 	// Create test calendar and selection
 	cal := models.NewCalendar()
@@ -116,7 +118,7 @@ func TestRenderer_GetDayAttributes(t *testing.T) {
 func TestRenderer_RenderMessage(t *testing.T) {
 	terminal := NewTerminal()
 	eventManager := events.NewManager()
-	renderer := NewRenderer(terminal, eventManager)
+	renderer := NewRenderer(terminal, eventManager, config.DefaultConfig())
 
 	tests := []struct {
 		name    string
@@ -166,7 +168,7 @@ func TestRenderer_RenderMessage(t *testing.T) {
 func TestRenderer_RenderEventList(t *testing.T) {
 	terminal := NewTerminal()
 	eventManager := events.NewManager()
-	renderer := NewRenderer(terminal, eventManager)
+	renderer := NewRenderer(terminal, eventManager, config.DefaultConfig())
 
 	testDate := time.Date(2025, 8, 15, 0, 0, 0, 0, time.UTC)
 
@@ -245,7 +247,7 @@ func TestRenderer_RenderEventList(t *testing.T) {
 func TestRenderer_RenderInputPrompt(t *testing.T) {
 	terminal := NewTerminal()
 	eventManager := events.NewManager()
-	renderer := NewRenderer(terminal, eventManager)
+	renderer := NewRenderer(terminal, eventManager, config.DefaultConfig())
 
 	tests := []struct {
 		name   string
@@ -302,7 +304,7 @@ func TestRenderer_RenderInputPrompt(t *testing.T) {
 func TestRenderer_RenderInlineInput(t *testing.T) {
 	terminal := NewTerminal()
 	eventManager := events.NewManager()
-	renderer := NewRenderer(terminal, eventManager)
+	renderer := NewRenderer(terminal, eventManager, config.DefaultConfig())
 
 	tests := []struct {
 		name        string
@@ -392,7 +394,7 @@ func TestRenderer_RenderInlineInput(t *testing.T) {
 func TestRenderer_CalendarRenderingMethods(t *testing.T) {
 	terminal := NewTerminal()
 	eventManager := events.NewManager()
-	renderer := NewRenderer(terminal, eventManager)
+	renderer := NewRenderer(terminal, eventManager, config.DefaultConfig())
 
 	// Create test data
 	cal := models.NewCalendar()
@@ -461,7 +463,7 @@ func TestRenderer_CalendarRenderingMethods(t *testing.T) {
 func TestRenderer_SearchRendering(t *testing.T) {
 	terminal := NewTerminal()
 	eventManager := events.NewManager()
-	renderer := NewRenderer(terminal, eventManager)
+	renderer := NewRenderer(terminal, eventManager, config.DefaultConfig())
 
 	// Create test data
 	cal := models.NewCalendar()
@@ -494,7 +496,7 @@ func TestRenderer_SearchRendering(t *testing.T) {
 func BenchmarkRenderer_GetDayAttributes(b *testing.B) {
 	terminal := NewTerminal()
 	eventManager := events.NewManager()
-	renderer := NewRenderer(terminal, eventManager)
+	renderer := NewRenderer(terminal, eventManager, config.DefaultConfig())
 
 	cal := models.NewCalendar()
 	selection := models.NewSelection(cal)
@@ -509,7 +511,7 @@ func BenchmarkRenderer_GetDayAttributes(b *testing.B) {
 func BenchmarkRenderer_RenderMessage(b *testing.B) {
 	terminal := NewTerminal()
 	eventManager := events.NewManager()
-	renderer := NewRenderer(terminal, eventManager)
+	renderer := NewRenderer(terminal, eventManager, config.DefaultConfig())
 
 	message := "Test message for benchmarking"
 
