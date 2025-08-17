@@ -16,7 +16,8 @@ import (
 type AppState int
 
 const (
-	StateCalendar AppState = iota
+	StateCalendar               AppState = iota
+	StateCalendarEventSelection          // New state for selecting events within calendar view
 	StateEventList
 	StateAddEvent
 )
@@ -112,6 +113,8 @@ func (app *Application) handleAction(action terminal.KeyAction) bool {
 	switch app.state {
 	case StateCalendar:
 		return app.handleCalendarAction(action)
+	case StateCalendarEventSelection:
+		return app.handleCalendarEventSelectionAction(action)
 	case StateEventList:
 		return app.handleEventListAction(action)
 	case StateAddEvent:
@@ -155,13 +158,50 @@ func (app *Application) handleCalendarAction(action terminal.KeyAction) bool {
 		app.processAddEvent()
 
 	case terminal.ActionDeleteEvent:
-		app.processDeleteEvent()
+		// Enter event selection mode in calendar view
+		selectedDate := app.navigation.GetCurrentSelection()
+		events := app.events.GetEventsForDate(selectedDate)
+		if len(events) > 0 {
+			app.state = StateCalendarEventSelection
+			app.selectedEventIndex = 0
+		} else {
+			app.showError("No events to delete on this date")
+		}
 
 	case terminal.ActionEditEvent:
 		app.processEditEvent()
 
 	case terminal.ActionResetCurrent:
 		app.navigation.ResetToCurrent()
+	}
+
+	return false
+}
+
+// handleCalendarEventSelectionAction handles actions when selecting events in calendar view
+func (app *Application) handleCalendarEventSelectionAction(action terminal.KeyAction) bool {
+	switch action {
+	case terminal.ActionQuit:
+		return true // Exit application
+
+	case terminal.ActionBack:
+		// Exit event selection mode and return to calendar navigation
+		app.state = StateCalendar
+		app.selectedEventIndex = 0
+
+	case terminal.ActionMoveUp:
+		app.navigateCalendarEventUp()
+
+	case terminal.ActionMoveDown:
+		app.navigateCalendarEventDown()
+
+	case terminal.ActionShowEvents:
+		// Enter key - confirm deletion of selected event
+		app.processDeleteSelectedCalendarEvent()
+
+	default:
+		// For other keys, ignore them in event selection mode
+		return false
 	}
 
 	return false
@@ -218,6 +258,10 @@ func (app *Application) renderCurrentView() error {
 	switch app.state {
 	case StateCalendar:
 		return app.renderer.RenderCalendar(app.calendar, app.selection)
+
+	case StateCalendarEventSelection:
+		// Render calendar with event selection highlighting
+		return app.renderer.RenderCalendarWithEventSelection(app.calendar, app.selection, app.selectedEventIndex)
 
 	case StateEventList:
 		selectedDate := app.navigation.GetCurrentSelection()
@@ -457,6 +501,63 @@ func (app *Application) processEditEventFromList() {
 	} else {
 		app.showMessage("Event edited successfully!")
 	}
+}
+
+// navigateCalendarEventUp moves selection up in the calendar events list
+func (app *Application) navigateCalendarEventUp() {
+	selectedDate := app.navigation.GetCurrentSelection()
+	events := app.events.GetEventsForDate(selectedDate)
+
+	if len(events) > 0 && app.selectedEventIndex > 0 {
+		app.selectedEventIndex--
+	}
+}
+
+// navigateCalendarEventDown moves selection down in the calendar events list
+func (app *Application) navigateCalendarEventDown() {
+	selectedDate := app.navigation.GetCurrentSelection()
+	events := app.events.GetEventsForDate(selectedDate)
+
+	if len(events) > 0 && app.selectedEventIndex < len(events)-1 {
+		app.selectedEventIndex++
+	}
+}
+
+// processDeleteSelectedCalendarEvent deletes the currently selected event in calendar view
+func (app *Application) processDeleteSelectedCalendarEvent() {
+	selectedDate := app.navigation.GetCurrentSelection()
+	events := app.events.GetEventsForDate(selectedDate)
+
+	if len(events) == 0 {
+		// No events to delete, exit selection mode
+		app.state = StateCalendar
+		app.selectedEventIndex = 0
+		return
+	}
+
+	if app.selectedEventIndex >= len(events) {
+		app.selectedEventIndex = len(events) - 1
+	}
+
+	event := events[app.selectedEventIndex]
+	confirmMsg := fmt.Sprintf("Delete event: %s - %s? (y/N)", event.GetTimeString(), event.Description)
+
+	if app.confirmAction(confirmMsg) {
+		err := app.events.DeleteEvent(event)
+		if err != nil {
+			app.showError(fmt.Sprintf("Error deleting event: %v", err))
+		} else {
+			app.showMessage("Event deleted successfully!")
+			// Adjust selection if we deleted the last event
+			if app.selectedEventIndex >= len(events)-1 && app.selectedEventIndex > 0 {
+				app.selectedEventIndex--
+			}
+		}
+	}
+
+	// Return to calendar navigation after deletion attempt
+	app.state = StateCalendar
+	app.selectedEventIndex = 0
 }
 
 // showError displays an error message
