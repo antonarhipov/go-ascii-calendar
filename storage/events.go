@@ -111,8 +111,8 @@ func SaveEventJSON(event models.Event, filename string) error {
 
 // convertJSONToEvent converts a JSONEvent to a models.Event
 func convertJSONToEvent(jsonEvent JSONEvent) (models.Event, error) {
-	// Parse date
-	eventDate, err := time.Parse("2006-01-02", jsonEvent.Date)
+	// Parse date in local timezone to ensure consistency with date comparisons
+	eventDate, err := time.ParseInLocation("2006-01-02", jsonEvent.Date, time.Local)
 	if err != nil {
 		return models.Event{}, fmt.Errorf("invalid date format '%s': %v", jsonEvent.Date, err)
 	}
